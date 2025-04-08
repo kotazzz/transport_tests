@@ -1,0 +1,128 @@
+{% extends 'base/base.html' %}
+
+{% block title %}Прием товаров на склад {{ warehouse.name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid my-4">
+    <div class="row mb-4">
+        <div class="col">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h4 class="mb-0">Прием товаров на склад {{ warehouse.name }}</h4>
+                        <a href="{% url 'warehouse_detail' warehouse.id %}" class="btn btn-light">
+                            <i class="bi bi-arrow-left"></i> Вернуться к складу
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mx-auto">
+                            <form method="post" class="needs-validation" novalidate>
+                                {% csrf_token %}
+                                
+                                <div class="mb-3">
+                                    <label for="seller" class="form-label">Продавец</label>
+                                    <select name="seller" id="seller" class="form-select" required>
+                                        <option value="">-- Выберите продавца --</option>
+                                        {% for seller in sellers %}
+                                            <option value="{{ seller.id }}">{{ seller.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    <div class="invalid-feedback">
+                                        Пожалуйста, выберите продавца
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="order" class="form-label">Заказ (не обязательно)</label>
+                                    <select name="order" id="order" class="form-select">
+                                        <option value="">-- Новый заказ --</option>
+                                        <!-- Список заказов будет загружен через JavaScript -->
+                                    </select>
+                                    <small class="form-text text-muted">
+                                        Если не выбран, будет создан новый заказ
+                                    </small>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="description" class="form-label">Описание товара</label>
+                                    <input type="text" class="form-control" id="description" name="description" required>
+                                    <div class="invalid-feedback">
+                                        Пожалуйста, введите описание товара
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="quantity" class="form-label">Количество</label>
+                                    <input type="number" class="form-control" id="quantity" name="quantity" min="1" value="1" required>
+                                    <div class="invalid-feedback">
+                                        Пожалуйста, введите количество (минимум 1)
+                                    </div>
+                                </div>
+                                
+                                <div class="d-grid mt-4">
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="bi bi-box"></i> Принять товар на склад
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Form validation
+    document.addEventListener('DOMContentLoaded', function() {
+        const forms = document.querySelectorAll('.needs-validation');
+        
+        Array.from(forms).forEach(form => {
+            form.addEventListener('submit', event => {
+                if (!form.checkValidity()) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                }
+                
+                form.classList.add('was-validated');
+            }, false);
+        });
+        
+        // Dynamic loading of orders when seller is selected
+        const sellerSelect = document.getElementById('seller');
+        const orderSelect = document.getElementById('order');
+        
+        sellerSelect.addEventListener('change', function() {
+            const sellerId = this.value;
+            
+            if (sellerId) {
+                // Clear current options
+                orderSelect.innerHTML = '<option value="">-- Новый заказ --</option>';
+                
+                // Fetch orders for this seller
+                fetch(`/api/sellers/${sellerId}/orders/`)
+                    .then(response => response.json())
+                    .then(data => {
+                        data.forEach(order => {
+                            const option = document.createElement('option');
+                            option.value = order.id;
+                            option.textContent = `Заказ #${order.id} (${order.status})`;
+                            orderSelect.appendChild(option);
+                        });
+                    })
+                    .catch(error => {
+                        console.error('Error fetching orders:', error);
+                    });
+            } else {
+                // Reset order select
+                orderSelect.innerHTML = '<option value="">-- Новый заказ --</option>';
+            }
+        });
+    });
+</script>
+{% endblock %}

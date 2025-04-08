@@ -2,179 +2,448 @@
 
 {% block title %}Логистическая система - {{ warehouse.name }}{% endblock %}
 
-{% block page_title %}Склад: {{ warehouse.name }}{% endblock %}
-
 {% block content %}
-<div class="card mb-4">
-    <div class="card-header">
-        Информация о складе
-    </div>
-    <div class="card-body">
-        <dl class="row">
-            <dt class="col-sm-3">Название:</dt>
-            <dd class="col-sm-9">{{ warehouse.name }}</dd>
-            
-            <dt class="col-sm-3">Адрес:</dt>
-            <dd class="col-sm-9">{{ warehouse.address }}</dd>
-            
-            <dt class="col-sm-3">Координаты:</dt>
-            <dd class="col-sm-9">
-                {% if warehouse.latitude and warehouse.longitude %}
-                    {{ warehouse.latitude }}, {{ warehouse.longitude }}
-                {% else %}
-                    Не указаны
-                {% endif %}
-            </dd>
-        </dl>
-        <div class="text-end">
-            <a href="/admin/logistics/location/{{ warehouse.id }}/change/" class="btn btn-secondary">Редактировать</a>
-            <a href="{% url 'warehouse_dashboard' %}" class="btn btn-primary">Назад к списку</a>
+<div class="container-fluid my-4">
+    <!-- Warehouse Info Card -->
+    <div class="card mb-4 shadow-sm">
+        <div class="card-header bg-primary text-white">
+            <div class="d-flex justify-content-between align-items-center">
+                <h4 class="mb-0">Склад: {{ warehouse.name }}</h4>
+                <div>
+                    <a href="{% url 'location_edit' warehouse.id %}" class="btn btn-light btn-sm me-2">
+                        <i class="bi bi-pencil"></i> Редактировать
+                    </a>
+                    <a href="{% url 'warehouse_dashboard' %}" class="btn btn-light btn-sm">
+                        <i class="bi bi-arrow-left"></i> Назад к списку
+                    </a>
+                </div>
+            </div>
         </div>
-    </div>
-</div>
-
-<!-- Кнопка создания перевозки -->
-<div class="mb-4">
-    <a href="{% url 'create_shipment_from_warehouse' warehouse.id %}" class="btn btn-success btn-lg">
-        <i class="bi bi-truck"></i> Создать новую перевозку
-    </a>
-</div>
-
-<ul class="nav nav-tabs mb-4" id="warehouseTabs" role="tablist">
-    <li class="nav-item" role="presentation">
-        <button class="nav-link active" id="items-tab" data-bs-toggle="tab" data-bs-target="#items" type="button" role="tab">
-            Товары на складе <span class="badge bg-primary">{{ warehouse_items.count }}</span>
-        </button>
-    </li>
-    <li class="nav-item" role="presentation">
-        <button class="nav-link" id="incoming-tab" data-bs-toggle="tab" data-bs-target="#incoming" type="button" role="tab">
-            Входящие перевозки <span class="badge bg-info">{{ incoming_shipments.count }}</span>
-        </button>
-    </li>
-    <li class="nav-item" role="presentation">
-        <button class="nav-link" id="outgoing-tab" data-bs-toggle="tab" data-bs-target="#outgoing" type="button" role="tab">
-            Исходящие перевозки <span class="badge bg-warning">{{ outgoing_shipments.count }}</span>
-        </button>
-    </li>
-</ul>
-
-<div class="tab-content" id="warehouseTabsContent">
-    <div class="tab-pane fade show active" id="items" role="tabpanel">
-        <div class="table-responsive">
-            <table class="table table-striped">
-                <thead>
-                    <tr>
-                        <th>ID товара</th>
-                        <th>Описание</th>
-                        <th>Кол-во</th>
-                        <th>Статус</th>
-                        <th>Заказ</th>
-                        <th>Действия</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for item in warehouse_items %}
-                    <tr>
-                        <td>{{ item.id }}</td>
-                        <td>{{ item.description }}</td>
-                        <td>{{ item.quantity }}</td>
-                        <td>
-                            {% if item.status == 'created' %}
-                                <span class="badge bg-secondary">Создан</span>
-                            {% elif item.status == 'at_warehouse' %}
-                                <span class="badge bg-primary">На складе</span>
-                            {% elif item.status == 'in_transit' %}
-                                <span class="badge bg-info">В перевозке</span>
-                            {% elif item.status == 'delivered' %}
-                                <span class="badge bg-success">Доставлен</span>
-                            {% elif item.status == 'returned' %}
-                                <span class="badge bg-danger">Возврат</span>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <dl class="row mb-0">
+                        <dt class="col-sm-4">Адрес:</dt>
+                        <dd class="col-sm-8">{{ warehouse.address }}</dd>
+                        
+                        <dt class="col-sm-4">Координаты:</dt>
+                        <dd class="col-sm-8">
+                            {% if warehouse.latitude and warehouse.longitude %}
+                                {{ warehouse.latitude }}, {{ warehouse.longitude }}
+                            {% else %}
+                                Не указаны
                             {% endif %}
-                        </td>
-                        <td><a href="{% url 'order_detail' item.order.id %}">Заказ #{{ item.order.id }}</a></td>
-                        <td>
-                            <a href="/admin/logistics/item/{{ item.id }}/change/" class="btn btn-sm btn-secondary">Изменить</a>
-                        </td>
-                    </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="6" class="text-center">Нет товаров на складе</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+                        </dd>
+                    </dl>
+                </div>
+                <div class="col-md-6">
+                    <dl class="row mb-0">
+                        <dt class="col-sm-4">Товаров на складе:</dt>
+                        <dd class="col-sm-8"><span class="badge bg-primary">{{ warehouse_items.count }}</span></dd>
+                        
+                        <dt class="col-sm-4">Активность:</dt>
+                        <dd class="col-sm-8">
+                            <span class="badge bg-success">Активный склад</span>
+                        </dd>
+                    </dl>
+                </div>
+            </div>
         </div>
     </div>
-    
-    <div class="tab-pane fade" id="incoming" role="tabpanel">
-        <div class="table-responsive">
-            <table class="table table-striped">
-                <thead>
-                    <tr>
-                        <th>Номер перевозки</th>
-                        <th>Откуда</th>
-                        <th>Ожидаемое прибытие</th>
-                        <th>Кол-во товаров</th>
-                        <th>Действия</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for shipment in incoming_shipments %}
-                    <tr>
-                        <td>{{ shipment.shipment_number }}</td>
-                        <td>{{ shipment.from_location }}</td>
-                        <td>{{ shipment.arrival_time|date:"d.m.Y H:i"|default:"Не указано" }}</td>
-                        <td>{{ shipment.items.count }} шт.</td>
-                        <td>
-                            <div class="btn-group">
-                                <a href="{% url 'shipment_detail' shipment.id %}" class="btn btn-sm btn-primary">Детали</a>
-                                {% if not shipment.arrival_time %}
-                                    <a href="{% url 'mark_shipment_arrived' shipment.id %}" class="btn btn-sm btn-success">Отметить прибытие</a>
-                                {% endif %}
-                            </div>
-                        </td>
-                    </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="5" class="text-center">Нет входящих перевозок</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+
+    <!-- Action Buttons -->
+    <div class="row mb-4">
+        <div class="col-sm-6 col-md-4 mb-3 mb-md-0">
+            <div class="d-grid">
+                <a href="{% url 'create_shipment_from_warehouse' warehouse.id %}" class="btn btn-success btn-lg">
+                    <i class="bi bi-truck"></i> Создать новую перевозку
+                </a>
+            </div>
+        </div>
+        <div class="col-sm-6 col-md-4 mb-3 mb-md-0">
+            <div class="d-grid">
+                <a href="{% url 'receive_items_at_warehouse' warehouse.id %}" class="btn btn-primary btn-lg">
+                    <i class="bi bi-box-arrow-in-down"></i> Принять товары на склад
+                </a>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="d-grid">
+                <button type="button" class="btn btn-info btn-lg" data-bs-toggle="modal" data-bs-target="#warehouseStatsModal">
+                    <i class="bi bi-graph-up"></i> Статистика склада
+                </button>
+            </div>
         </div>
     </div>
-    
-    <div class="tab-pane fade" id="outgoing" role="tabpanel">
-        <div class="table-responsive">
-            <table class="table table-striped">
-                <thead>
-                    <tr>
-                        <th>Номер перевозки</th>
-                        <th>Куда</th>
-                        <th>Запланированное отправление</th>
-                        <th>Кол-во товаров</th>
-                        <th>Действия</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for shipment in outgoing_shipments %}
-                    <tr>
-                        <td>{{ shipment.shipment_number }}</td>
-                        <td>{{ shipment.to_location }}</td>
-                        <td>{{ shipment.departure_time|date:"d.m.Y H:i" }}</td>
-                        <td>{{ shipment.items.count }} шт.</td>
-                        <td>
-                            <a href="{% url 'shipment_detail' shipment.id %}" class="btn btn-sm btn-primary">Детали</a>
-                        </td>
-                    </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="5" class="text-center">Нет исходящих перевозок</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+
+    <!-- Items and Shipments Tabs -->
+    <div class="card shadow-sm">
+        <div class="card-header bg-light p-0">
+            <ul class="nav nav-tabs card-header-tabs" id="warehouseTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="items-tab" data-bs-toggle="tab" data-bs-target="#items" type="button" role="tab">
+                        <i class="bi bi-box-seam"></i> Товары на складе <span class="badge bg-primary">{{ warehouse_items.count }}</span>
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="incoming-tab" data-bs-toggle="tab" data-bs-target="#incoming" type="button" role="tab">
+                        <i class="bi bi-arrow-down-circle"></i> Входящие перевозки <span class="badge bg-info">{{ incoming_shipments.count }}</span>
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="outgoing-tab" data-bs-toggle="tab" data-bs-target="#outgoing" type="button" role="tab">
+                        <i class="bi bi-arrow-up-circle"></i> Исходящие перевозки <span class="badge bg-warning">{{ outgoing_shipments.count }}</span>
+                    </button>
+                </li>
+            </ul>
+        </div>
+        <div class="card-body">
+            <div class="tab-content" id="warehouseTabsContent">
+                <!-- Items Tab -->
+                <div class="tab-pane fade show active" id="items" role="tabpanel">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="mb-0">Товары на складе</h5>
+                        <div class="btn-group">
+                            <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#itemFilters">
+                                <i class="bi bi-funnel"></i> Фильтры
+                            </button>
+                            <a href="{% url 'receive_items_at_warehouse' warehouse.id %}" class="btn btn-sm btn-primary">
+                                <i class="bi bi-plus-lg"></i> Принять товар
+                            </a>
+                        </div>
+                    </div>
+                    
+                    <!-- Item Filters (collapsed by default) -->
+                    <div class="collapse mb-3" id="itemFilters">
+                        <div class="card card-body">
+                            <form method="get" action="">
+                                <div class="row g-2">
+                                    <div class="col-md-4">
+                                        <label class="form-label">Статус</label>
+                                        <select class="form-select form-select-sm" name="status">
+                                            <option value="">Все статусы</option>
+                                            <option value="created">Создан</option>
+                                            <option value="at_warehouse">На складе</option>
+                                            <option value="in_transit">В пути</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label">Заказ</label>
+                                        <input type="text" class="form-control form-control-sm" name="order_id" placeholder="№ заказа">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label">Описание товара</label>
+                                        <input type="text" class="form-control form-control-sm" name="description" placeholder="Описание">
+                                    </div>
+                                    <div class="col-12 text-end">
+                                        <button type="submit" class="btn btn-sm btn-primary mt-2">Применить</button>
+                                        <a href="?" class="btn btn-sm btn-outline-secondary mt-2">Сбросить</a>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                    
+                    <!-- Items Table -->
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Описание</th>
+                                    <th>Кол-во</th>
+                                    <th>Статус</th>
+                                    <th>Заказ</th>
+                                    <th>Продавец</th>
+                                    <th>Действия</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in warehouse_items %}
+                                <tr>
+                                    <td>{{ item.id }}</td>
+                                    <td>{{ item.description }}</td>
+                                    <td>{{ item.quantity }}</td>
+                                    <td>
+                                        {% if item.status == 'created' %}
+                                            <span class="badge bg-secondary">Создан</span>
+                                        {% elif item.status == 'at_warehouse' %}
+                                            <span class="badge bg-primary">На складе</span>
+                                        {% elif item.status == 'in_transit' %}
+                                            <span class="badge bg-info">В перевозке</span>
+                                        {% elif item.status == 'delivered' %}
+                                            <span class="badge bg-success">Доставлен</span>
+                                        {% elif item.status == 'returned' %}
+                                            <span class="badge bg-danger">Возврат</span>
+                                        {% endif %}
+                                    </td>
+                                    <td><a href="{% url 'order_detail' item.order.id %}">Заказ #{{ item.order.id }}</a></td>
+                                    <td>{{ item.order.seller.name }}</td>
+                                    <td>
+                                        <div class="btn-group">
+                                            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                                Действия
+                                            </button>
+                                            <ul class="dropdown-menu">
+                                                <li><a class="dropdown-item" href="{% url 'item_edit' item.id %}">Редактировать</a></li>
+                                                <li>
+                                                    <form method="post" action="{% url 'update_item_status' item.id 'in_transit' %}">
+                                                        {% csrf_token %}
+                                                        <button type="submit" class="dropdown-item">Отправить в перевозку</button>
+                                                    </form>
+                                                </li>
+                                                <li><hr class="dropdown-divider"></li>
+                                                <li><a class="dropdown-item text-danger" href="#" onclick="confirmDelete('{{ item.id }}')">Удалить</a></li>
+                                            </ul>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="7" class="text-center py-3">
+                                        <div class="alert alert-info mb-0">
+                                            <i class="bi bi-info-circle me-2"></i> Нет товаров на складе
+                                        </div>
+                                        <div class="mt-3">
+                                            <a href="{% url 'receive_items_at_warehouse' warehouse.id %}" class="btn btn-sm btn-primary">
+                                                Принять товары на склад
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <!-- Incoming Shipments Tab -->
+                <div class="tab-pane fade" id="incoming" role="tabpanel">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Номер перевозки</th>
+                                    <th>Откуда</th>
+                                    <th>Отправление</th>
+                                    <th>Ожидаемое прибытие</th>
+                                    <th>Статус</th>
+                                    <th>Кол-во товаров</th>
+                                    <th>Действия</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for shipment in incoming_shipments %}
+                                <tr>
+                                    <td><strong>{{ shipment.shipment_number }}</strong></td>
+                                    <td>{{ shipment.from_location.name }}</td>
+                                    <td>{{ shipment.departure_time|date:"d.m.Y H:i" }}</td>
+                                    <td>{{ shipment.arrival_time|date:"d.m.Y H:i"|default:"Не указано" }}</td>
+                                    <td>
+                                        {% if shipment.arrival_time %}
+                                            {% if shipment.arrival_time <= now %}
+                                                <span class="badge bg-success">Прибыла</span>
+                                            {% else %}
+                                                <span class="badge bg-warning">Ожидается</span>
+                                            {% endif %}
+                                        {% else %}
+                                            <span class="badge bg-info">В пути</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ shipment.items.count }} шт.</td>
+                                    <td>
+                                        <div class="btn-group">
+                                            <a href="{% url 'shipment_detail' shipment.id %}" class="btn btn-sm btn-primary">Детали</a>
+                                            {% if not shipment.arrival_time %}
+                                                <a href="{% url 'mark_shipment_arrived' shipment.id %}" class="btn btn-sm btn-success">Принять перевозку</a>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="7" class="text-center py-3">
+                                        <div class="alert alert-info mb-0">
+                                            <i class="bi bi-info-circle me-2"></i> Нет входящих перевозок
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <!-- Outgoing Shipments Tab -->
+                <div class="tab-pane fade" id="outgoing" role="tabpanel">
+                    <div class="d-flex justify-content-end mb-3">
+                        <a href="{% url 'create_shipment_from_warehouse' warehouse.id %}" class="btn btn-sm btn-success">
+                            <i class="bi bi-plus-lg"></i> Создать перевозку
+                        </a>
+                    </div>
+                    
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Номер перевозки</th>
+                                    <th>Пункт назначения</th>
+                                    <th>Тип назначения</th>
+                                    <th>Отправление</th>
+                                    <th>Статус</th>
+                                    <th>Кол-во товаров</th>
+                                    <th>Действия</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for shipment in outgoing_shipments %}
+                                <tr>
+                                    <td><strong>{{ shipment.shipment_number }}</strong></td>
+                                    <td>{{ shipment.to_location.name }}</td>
+                                    <td>
+                                        {% if shipment.to_location.location_type == 'warehouse' %}
+                                            <span class="badge bg-primary">Склад</span>
+                                        {% else %}
+                                            <span class="badge bg-success">Пункт выдачи</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ shipment.departure_time|date:"d.m.Y H:i" }}</td>
+                                    <td>
+                                        {% if shipment.arrival_time %}
+                                            {% if shipment.arrival_time <= now %}
+                                                <span class="badge bg-success">Прибыла</span>
+                                            {% else %}
+                                                <span class="badge bg-warning">Ожидается</span>
+                                            {% endif %}
+                                        {% else %}
+                                            <span class="badge bg-info">В пути</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ shipment.items.count }} шт.</td>
+                                    <td>
+                                        <div class="btn-group">
+                                            <a href="{% url 'shipment_detail' shipment.id %}" class="btn btn-sm btn-primary">Детали</a>
+                                            {% if not shipment.items.exists %}
+                                                <a href="{% url 'add_items_to_shipment_enhanced' shipment.id %}" class="btn btn-sm btn-warning">
+                                                    <i class="bi bi-plus-lg"></i> Добавить товары
+                                                </a>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="7" class="text-center py-3">
+                                        <div class="alert alert-info mb-0">
+                                            <i class="bi bi-info-circle me-2"></i> Нет исходящих перевозок
+                                        </div>
+                                        <div class="mt-3">
+                                            <a href="{% url 'create_shipment_from_warehouse' warehouse.id %}" class="btn btn-sm btn-success">
+                                                <i class="bi bi-plus-lg"></i> Создать перевозку
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </div>
+
+<!-- Warehouse Stats Modal -->
+<div class="modal fade" id="warehouseStatsModal" tabindex="-1" aria-labelledby="warehouseStatsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="warehouseStatsModalLabel">Статистика склада {{ warehouse.name }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <div class="card">
+                            <div class="card-header bg-light">Товары по статусам</div>
+                            <div class="card-body">
+                                <canvas id="itemStatusChart" width="100%" height="200"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <div class="card">
+                            <div class="card-header bg-light">Активность перевозок</div>
+                            <div class="card-body">
+                                <canvas id="shipmentsChart" width="100%" height="200"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-header bg-light">Топ продавцов на складе</div>
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table table-sm">
+                                        <thead>
+                                            <tr>
+                                                <th>Продавец</th>
+                                                <th>Кол-во товаров</th>
+                                                <th>% от общего числа</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <!-- Здесь будут данные о продавцах -->
+                                            <tr>
+                                                <td>Информация о продавцах будет доступна в следующей версии</td>
+                                                <td></td>
+                                                <td></td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Функция подтверждения удаления
+        window.confirmDelete = function(itemId) {
+            if (confirm('Вы уверены, что хотите удалить этот товар?')) {
+                window.location.href = '/items/' + itemId + '/delete/';
+            }
+        };
+        
+        // Здесь будет код для графиков, если у вас есть Chart.js
+        /* Пример кода для графиков:
+        const itemStatusCtx = document.getElementById('itemStatusChart');
+        if (itemStatusCtx) {
+            new Chart(itemStatusCtx, {
+                type: 'pie',
+                data: {
+                    labels: ['На складе', 'В перевозке', 'Создан'],
+                    datasets: [{
+                        data: [12, 7, 3],
+                        backgroundColor: ['#0d6efd', '#0dcaf0', '#6c757d']
+                    }]
+                }
+            });
+        }
+        */
+    });
+</script>
 {% endblock %}

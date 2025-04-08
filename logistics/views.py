@@ -231,14 +231,32 @@ def create_shipments_for_order(request, order_id):
     return redirect('order_detail', order_id=order.id)
 
 def mark_shipment_arrived(request, shipment_id):
-    """Mark a shipment as arrived at its destination"""
+    """Mark a shipment as arrived at its destination with improved process"""
     shipment = get_object_or_404(Shipment, pk=shipment_id)
     
     if shipment.arrival_time:
         messages.warning(request, 'Перевозка уже отмечена как прибывшая')
     else:
-        shipment.mark_as_arrived()
-        messages.success(request, f'Перевозка {shipment.shipment_number} отмечена как прибывшая')
+        # Set arrival time
+        shipment.arrival_time = timezone.now()
+        shipment.save()
+        
+        # Update item statuses based on destination type
+        dest_type = shipment.to_location.location_type
+        
+        for item in shipment.items.all():
+            if dest_type == 'pickup':
+                # At pickup point, items are ready for customer pickup
+                item.update_status('at_warehouse', shipment.to_location)
+                
+                # Create notification for pickup point
+                # This could be extended to real notifications in future
+                messages.info(request, f'Товар "{item.description}" готов к выдаче в {shipment.to_location.name}')
+            else:
+                # At warehouse, items are stored for future shipment or processing
+                item.update_status('at_warehouse', shipment.to_location)
+                
+        messages.success(request, f'Перевозка {shipment.shipment_number} отмечена как прибывшая в {shipment.to_location.name}')
     
     return redirect('shipment_detail', shipment_id=shipment.id)
 
@@ -566,108 +584,16 @@ def item_delete(request, item_id):
     return redirect('order_detail', order_id=order.id)
 
 def create_shipment_manual(request):
-    """Create a shipment manually"""
-    if request.method == 'POST':
-        form = ShipmentForm(request.POST)
-        if form.is_valid():
-            shipment = form.save(commit=False)
-            
-            # Calculate expected arrival time
-            from_loc = form.cleaned_data['from_location']
-            to_loc = form.cleaned_data['to_location']
-            
-            try:
-                route = Route.objects.get(from_location=from_loc, to_location=to_loc, active=True)
-                travel_time = route.travel_time
-            except Route.DoesNotExist:
-                travel_time = timezone.timedelta(hours=1)  # Default 1 hour if no route
-            
-            shipment.arrival_time = shipment.departure_time + travel_time
-            shipment.save()
-            
-            messages.success(request, f'Перевозка #{shipment.shipment_number} успешно создана')
-            return redirect('add_items_to_shipment', shipment_id=shipment.id)
-    else:
-        # Generate a unique shipment number
-        shipment_number = f"SH-{uuid.uuid4().hex[:8].upper()}"
-        form = ShipmentForm(initial={'shipment_number': shipment_number, 'departure_time': timezone.now()})
-    
-    context = {
-        'form': form,
-    }
-    return render(request, 'logistics/shipments/form.html', context)
+    """Create a shipment manually with improved flow"""
+    # Redirect to enhanced interface that will ask for source warehouse first
+    return redirect('warehouse_dashboard')
 
 def add_items_to_shipment(request, shipment_id):
-    """Add items to a shipment"""
-    shipment = get_object_or_404(Shipment, pk=shipment_id)
-    
-    if shipment.arrival_time and shipment.arrival_time < timezone.now():
-        messages.error(request, 'Нельзя добавлять товары в уже прибывшую перевозку')
-        return redirect('shipment_detail', shipment_id=shipment.id)
-    
-    if request.method == 'POST':
-        form = ItemSelectionForm(request.POST, location=shipment.from_location)
-        if form.is_valid():
-            items = form.cleaned_data['items']
-            
-            for item in items:
-                shipment.items.add(item)
-                item.update_status('in_transit', shipment.from_location)
-            
-            messages.success(request, f'Товары успешно добавлены в перевозку #{shipment.shipment_number}')
-            return redirect('shipment_detail', shipment_id=shipment.id)
-    else:
-        form = ItemSelectionForm(location=shipment.from_location)
-    
-    context = {
-        'form': form,
-        'shipment': shipment,
-    }
-    return render(request, 'logistics/shipments/add_items.html', context)
-
-def create_shipment_from_warehouse(request, warehouse_id):
     """
-    Создать перевозку от имени конкретного склада.
-    Предварительно заполняет форму с указанием склада как точки отправления.
+    This view now redirects to the enhanced interface for better UX
     """
-    warehouse = get_object_or_404(Location, pk=warehouse_id, location_type='warehouse')
-    
-    if request.method == 'POST':
-        form = ShipmentForm(request.POST)
-        if form.is_valid():
-            shipment = form.save(commit=False)
-            
-            # Расчет ожидаемого времени прибытия
-            from_loc = form.cleaned_data['from_location']
-            to_loc = form.cleaned_data['to_location']
-            
-            try:
-                route = Route.objects.get(from_location=from_loc, to_location=to_loc, active=True)
-                travel_time = route.travel_time
-            except Route.DoesNotExist:
-                travel_time = timezone.timedelta(hours=1)  # По умолчанию 1 час если нет маршрута
-            
-            # Устанавливаем время прибытия
-            shipment.arrival_time = shipment.departure_time + travel_time
-            shipment.save()
-            
-            messages.success(request, f'Перевозка #{shipment.shipment_number} успешно создана')
-            return redirect('add_items_to_shipment_enhanced', shipment_id=shipment.id)
-    else:
-        # Генерация уникального номера перевозки
-        shipment_number = f"SH-{uuid.uuid4().hex[:8].upper()}"
-        form = ShipmentForm(initial={
-            'shipment_number': shipment_number, 
-            'from_location': warehouse,
-            'departure_time': timezone.now()
-        })
-    
-    context = {
-        'form': form,
-        'warehouse': warehouse,
-        'page_title': f'Создание перевозки из {warehouse.name}'
-    }
-    return render(request, 'logistics/shipments/form.html', context)
+    # Redirect to the enhanced interface
+    return redirect('add_items_to_shipment_enhanced', shipment_id=shipment_id)
 
 def add_items_to_shipment_enhanced(request, shipment_id):
     """
@@ -781,3 +707,278 @@ def add_items_to_shipment_enhanced(request, shipment_id):
         'warehouse': warehouse
     }
     return render(request, 'logistics/shipments/add_items_enhanced.html', context)
+
+def create_shipment_from_warehouse(request, warehouse_id):
+    """
+    Создать перевозку от имени конкретного склада.
+    Предварительно заполняет форму с указанием склада как точки отправления.
+    """
+    warehouse = get_object_or_404(Location, pk=warehouse_id, location_type='warehouse')
+    
+    if request.method == 'POST':
+        form = ShipmentForm(request.POST)
+        if form.is_valid():
+            shipment = form.save(commit=False)
+            
+            # Расчет ожидаемого времени прибытия
+            from_loc = form.cleaned_data['from_location']
+            to_loc = form.cleaned_data['to_location']
+            
+            try:
+                route = Route.objects.get(from_location=from_loc, to_location=to_loc, active=True)
+                travel_time = route.travel_time
+            except Route.DoesNotExist:
+                travel_time = timezone.timedelta(hours=1)  # По умолчанию 1 час если нет маршрута
+            
+            # Устанавливаем время прибытия
+            shipment.arrival_time = shipment.departure_time + travel_time
+            shipment.save()
+            
+            messages.success(request, f'Перевозка #{shipment.shipment_number} успешно создана')
+            return redirect('add_items_to_shipment_enhanced', shipment_id=shipment.id)
+    else:
+        # Генерация уникального номера перевозки
+        shipment_number = f"SH-{uuid.uuid4().hex[:8].upper()}"
+        form = ShipmentForm(initial={
+            'shipment_number': shipment_number, 
+            'from_location': warehouse,
+            'departure_time': timezone.now()
+        })
+    
+    context = {
+        'form': form,
+        'warehouse': warehouse,
+        'page_title': f'Создание перевозки из {warehouse.name}'
+    }
+    return render(request, 'logistics/shipments/form.html', context)
+
+# Added new function to update item status with clear process stages
+def update_item_status(request, item_id, new_status):
+    """
+    Explicit status update function for items to provide clear delivery stages
+    """
+    item = get_object_or_404(Item, pk=item_id)
+    
+    # Define allowed transitions to ensure process integrity
+    allowed_transitions = {
+        'created': ['at_warehouse'],
+        'at_warehouse': ['in_transit', 'returned'],
+        'in_transit': ['at_warehouse', 'delivered'],
+        'delivered': ['returned'],
+        'returned': ['at_warehouse']
+    }
+    
+    # Validate transition
+    if new_status not in allowed_transitions.get(item.status, []):
+        messages.error(request, f'Недопустимый переход статуса с "{item.get_status_display()}" на "{new_status}"')
+        return redirect('order_detail', order_id=item.order.id)
+    
+    # Update the item status
+    if new_status == 'at_warehouse':
+        # When arriving at warehouse, ensure location is set
+        warehouse_id = request.POST.get('warehouse_id')
+        if not warehouse_id:
+            messages.error(request, 'Необходимо указать склад для размещения товара')
+            return redirect('order_detail', order_id=item.order.id)
+        
+        warehouse = get_object_or_404(Location, pk=warehouse_id, location_type='warehouse')
+        item.update_status(new_status, warehouse)
+        messages.success(request, f'Товар принят на склад {warehouse.name}')
+        
+    elif new_status == 'delivered':
+        # For delivery, ensure location is set to destination
+        destination = item.current_location
+        item.update_status(new_status, destination)
+        messages.success(request, 'Товар отмечен как доставленный')
+        
+    else:
+        # Other status updates
+        item.update_status(new_status)
+        messages.success(request, f'Статус товара обновлен на "{item.get_status_display()}"')
+    
+    return redirect('order_detail', order_id=item.order.id)
+
+# Add new function for warehouse receiving process
+def receive_items_at_warehouse(request, warehouse_id):
+    """
+    Process for receiving items at warehouse from suppliers or returns
+    """
+    warehouse = get_object_or_404(Location, pk=warehouse_id, location_type='warehouse')
+    
+    if request.method == 'POST':
+        seller_id = request.POST.get('seller')
+        order_id = request.POST.get('order')
+        description = request.POST.get('description')
+        quantity = request.POST.get('quantity')
+        
+        if not all([seller_id, description, quantity]):
+            messages.error(request, 'Заполните все обязательные поля')
+            return redirect('receive_items_at_warehouse', warehouse_id=warehouse_id)
+        
+        seller = get_object_or_404(Seller, pk=seller_id)
+        
+        # Use existing or create new order
+        if order_id:
+            order = get_object_or_404(Order, pk=order_id, seller=seller)
+        else:
+            order = Order.objects.create(
+                seller=seller,
+                status='pending',
+                destination=None  # Will be set later in the process
+            )
+        
+        # Create new item with warehouse location
+        item = Item.objects.create(
+            order=order,
+            description=description,
+            quantity=quantity,
+            status='at_warehouse',
+            current_location=warehouse
+        )
+        
+        messages.success(request, f'Товар "{item.description}" принят на склад {warehouse.name}')
+        return redirect('warehouse_detail', warehouse_id=warehouse_id)
+    
+    # For GET request, display the form
+    context = {
+        'warehouse': warehouse,
+        'sellers': Seller.objects.all(),
+    }
+    return render(request, 'logistics/warehouse/receive_items.html', context)
+
+def deliver_item_to_customer(request, item_id):
+    """
+    Mark an item as delivered to the customer
+    """
+    item = get_object_or_404(Item, pk=item_id)
+    
+    if item.status != 'at_warehouse' or item.current_location.location_type != 'pickup':
+        messages.error(request, 'Товар должен находиться в пункте выдачи для доставки клиенту')
+    else:
+        item.update_status('delivered')
+        messages.success(request, f'Товар "{item.description}" доставлен клиенту')
+    
+    return redirect('pickup_detail', pickup_id=item.current_location.id)
+
+# Add new shipment stage views at the end of the file
+
+def shipment_loading(request, shipment_id):
+    """
+    View for loading items into a shipment.
+    This stage sets the shipment status to 'loading' and allows adding items.
+    """
+    shipment = get_object_or_404(Shipment, pk=shipment_id)
+    
+    # Only created shipments can be loaded
+    if shipment.status != 'created':
+        messages.error(request, f'Перевозка в статусе "{shipment.get_status_display()}" не может быть переведена в статус загрузки')
+        return redirect('shipment_detail', shipment_id=shipment.id)
+    
+    # Change status to loading
+    shipment.status = 'loading'
+    shipment.save()
+    
+    messages.success(request, f'Перевозка #{shipment.shipment_number} переведена в статус загрузки. Добавьте товары.')
+    
+    # Redirect to the add items interface
+    return redirect('add_items_to_shipment_enhanced', shipment_id=shipment.id)
+
+def shipment_start_transit(request, shipment_id):
+    """
+    Start the shipment transit - mark items as in_transit and update shipment status.
+    """
+    shipment = get_object_or_404(Shipment, pk=shipment_id)
+    
+    # Check if the shipment is in loading status and has items
+    if shipment.status != 'loading':
+        messages.error(request, f'Только перевозки в статусе загрузки могут быть отправлены в путь')
+        return redirect('shipment_detail', shipment_id=shipment.id)
+        
+    if not shipment.items.exists():
+        messages.error(request, 'Невозможно отправить пустую перевозку. Добавьте товары.')
+        return redirect('add_items_to_shipment_enhanced', shipment_id=shipment.id)
+    
+    # Mark shipment as in transit
+    shipment.mark_as_in_transit()
+    
+    messages.success(request, f'Перевозка #{shipment.shipment_number} отправлена в путь')
+    return redirect('shipment_detail', shipment_id=shipment.id)
+
+def shipment_mark_arrived(request, shipment_id):
+    """
+    Mark shipment as arrived at destination, but items are still not unloaded.
+    This replaces the previous mark_shipment_arrived function.
+    """
+    shipment = get_object_or_404(Shipment, pk=shipment_id)
+    
+    if shipment.status != 'in_transit':
+        messages.warning(request, f'Только перевозки в пути могут быть отмечены как прибывшие')
+        return redirect('shipment_detail', shipment_id=shipment.id)
+    
+    # Set arrival time and update status
+    shipment.mark_as_arrived()
+    
+    messages.success(request, f'Перевозка #{shipment.shipment_number} прибыла в {shipment.to_location.name}. Требуется разгрузка товаров.')
+    return redirect('shipment_detail', shipment_id=shipment.id)
+
+def shipment_unload(request, shipment_id):
+    """
+    Unload the shipment - move items from shipment to destination warehouse.
+    """
+    shipment = get_object_or_404(Shipment, pk=shipment_id)
+    
+    if shipment.status != 'arrived':
+        messages.warning(request, 'Только прибывшие перевозки могут быть разгружены')
+        return redirect('shipment_detail', shipment_id=shipment.id)
+    
+    # Unload all items - updates their status and location
+    if shipment.unload_items():
+        messages.success(request, f'Перевозка #{shipment.shipment_number} разгружена. Товары перемещены на склад {shipment.to_location.name}')
+    else:
+        messages.error(request, 'Не удалось разгрузить перевозку')
+    
+    return redirect('shipment_detail', shipment_id=shipment.id)
+
+def shipment_complete(request, shipment_id):
+    """
+    Mark shipment as completed after all processing is done.
+    """
+    shipment = get_object_or_404(Shipment, pk=shipment_id)
+    
+    if shipment.status != 'unloaded':
+        messages.warning(request, 'Только разгруженные перевозки могут быть отмечены как завершенные')
+        return redirect('shipment_detail', shipment_id=shipment.id)
+    
+    # Complete the shipment
+    if shipment.complete_shipment():
+        messages.success(request, f'Перевозка #{shipment.shipment_number} успешно завершена')
+    else:
+        messages.error(request, 'Не удалось завершить перевозку')
+    
+    return redirect('shipment_detail', shipment_id=shipment.id)
+
+def shipment_cancel(request, shipment_id):
+    """
+    Cancel a shipment and return all items to their original location.
+    """
+    shipment = get_object_or_404(Shipment, pk=shipment_id)
+    
+    # Can only cancel shipments that haven't been completed or already cancelled
+    if shipment.status in ['completed', 'cancelled']:
+        messages.warning(request, 'Невозможно отменить уже завершенную или отмененную перевозку')
+        return redirect('shipment_detail', shipment_id=shipment.id)
+    
+    # Get all items and their current location
+    items = shipment.items.all()
+    
+    # Set status to cancelled
+    shipment.status = 'cancelled'
+    shipment.save()
+    
+    # Return all items to the source location if they're in transit
+    for item in items:
+        if item.status == 'in_transit':
+            item.update_status('at_warehouse', shipment.from_location)
+    
+    messages.success(request, f'Перевозка #{shipment.shipment_number} отменена. Товары возвращены на склад отправления.')
+    return redirect('shipment_detail', shipment_id=shipment.id)

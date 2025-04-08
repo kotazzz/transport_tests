@@ -4,7 +4,12 @@
 
 {% block content %}
 <div class="container my-4">
-    <h1 class="mb-4">Перевозки</h1>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Перевозки</h1>
+        <div>
+            <a href="{% url 'warehouse_dashboard' %}" class="btn btn-primary">Создать перевозку</a>
+        </div>
+    </div>
     
     <!-- Фильтры -->
     <div class="card mb-4">
@@ -39,13 +44,18 @@
                     <label for="status" class="form-label">Статус</label>
                     <select name="status" id="status" class="form-select">
                         <option value="">-- Все статусы --</option>
-                        <option value="arrived" {% if request.GET.status == 'arrived' %}selected{% endif %}>Доставлено</option>
+                        <option value="created" {% if request.GET.status == 'created' %}selected{% endif %}>Создана</option>
+                        <option value="loading" {% if request.GET.status == 'loading' %}selected{% endif %}>Загрузка</option>
                         <option value="in_transit" {% if request.GET.status == 'in_transit' %}selected{% endif %}>В пути</option>
-                        <option value="pending" {% if request.GET.status == 'pending' %}selected{% endif %}>Ожидает отправки</option>
+                        <option value="arrived" {% if request.GET.status == 'arrived' %}selected{% endif %}>Прибыла</option>
+                        <option value="unloaded" {% if request.GET.status == 'unloaded' %}selected{% endif %}>Разгружена</option>
+                        <option value="completed" {% if request.GET.status == 'completed' %}selected{% endif %}>Завершена</option>
+                        <option value="cancelled" {% if request.GET.status == 'cancelled' %}selected{% endif %}>Отменена</option>
                     </select>
                 </div>
                 <div class="col-12 d-flex justify-content-end">
                     <button type="submit" class="btn btn-primary">Применить</button>
+                    <a href="{% url 'shipment_list' %}" class="btn btn-secondary ms-2">Сбросить</a>
                 </div>
             </form>
         </div>
@@ -63,6 +73,8 @@
                                 <th>Откуда</th>
                                 <th>Куда</th>
                                 <th>Дата отправления</th>
+                                <th>Расч. прибытие</th>
+                                <th>Факт. прибытие</th>
                                 <th>Статус</th>
                                 <th>Товары</th>
                                 <th>Действия</th>
@@ -75,28 +87,47 @@
                                     <td>{{ shipment.from_location.name }}</td>
                                     <td>{{ shipment.to_location.name }}</td>
                                     <td>{{ shipment.departure_time|date:"d.m.Y H:i" }}</td>
+                                    <td>{{ shipment.estimated_arrival_time|date:"d.m.Y H:i"|default:"—" }}</td>
+                                    <td>{{ shipment.arrival_time|date:"d.m.Y H:i"|default:"—" }}</td>
                                     <td>
-                                        {% if shipment.arrival_time %}
-                                            <span class="badge bg-success">Доставлено</span>
-                                        {% elif shipment.departure_time > now %}
-                                            <span class="badge bg-warning">Ожидает отправки</span>
-                                        {% else %}
-                                            <span class="badge bg-primary">В пути</span>
-                                        {% endif %}
+                                        <span class="badge 
+                                            {% if shipment.status == 'completed' %}bg-success
+                                            {% elif shipment.status == 'in_transit' %}bg-primary
+                                            {% elif shipment.status == 'cancelled' %}bg-danger
+                                            {% elif shipment.status == 'arrived' %}bg-info
+                                            {% elif shipment.status == 'unloaded' %}bg-warning
+                                            {% elif shipment.status == 'loading' %}bg-warning text-dark
+                                            {% else %}bg-secondary{% endif %}">
+                                            {{ shipment.get_status_display }}
+                                        </span>
                                     </td>
                                     <td>{{ shipment.items.count }}</td>
                                     <td>
-                                        <a href="{% url 'shipment_detail' shipment.id %}" class="btn btn-sm btn-info">
-                                            Детали
-                                        </a>
-                                        {% if not shipment.arrival_time %}
-                                            <form method="post" action="{% url 'mark_shipment_arrived' shipment.id %}" class="d-inline">
-                                                {% csrf_token %}
-                                                <button type="submit" class="btn btn-sm btn-success">
-                                                    Прибыла
-                                                </button>
-                                            </form>
-                                        {% endif %}
+                                        <div class="btn-group">
+                                            <a href="{% url 'shipment_detail' shipment.id %}" class="btn btn-sm btn-info">
+                                                Детали
+                                            </a>
+                                            
+                                            {% if shipment.status == 'created' %}
+                                                <form method="post" action="{% url 'shipment_loading' shipment.id %}" class="d-inline">
+                                                    {% csrf_token %}
+                                                    <button type="submit" class="btn btn-sm btn-primary">
+                                                        Загрузка
+                                                    </button>
+                                                </form>
+                                            {% elif shipment.status == 'loading' %}
+                                                <a href="{% url 'add_items_to_shipment_enhanced' shipment.id %}" class="btn btn-sm btn-primary">
+                                                    Добавить товары
+                                                </a>
+                                            {% elif shipment.status == 'in_transit' %}
+                                                <form method="post" action="{% url 'shipment_mark_arrived' shipment.id %}" class="d-inline">
+                                                    {% csrf_token %}
+                                                    <button type="submit" class="btn btn-sm btn-success">
+                                                        Прибыла
+                                                    </button>
+                                                </form>
+                                            {% endif %}
+                                        </div>
                                     </td>
                                 </tr>
                             {% endfor %}

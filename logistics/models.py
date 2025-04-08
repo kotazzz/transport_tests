@@ -165,10 +165,22 @@ class Shipment(models.Model):
     """
     Модель перевозки товаров между локациями
     """
+    STATUS_CHOICES = (
+        ('created', 'Создана'),
+        ('loading', 'Загрузка'),
+        ('in_transit', 'В пути'),
+        ('arrived', 'Прибыла'),
+        ('unloaded', 'Разгружена'),
+        ('completed', 'Завершена'),
+        ('cancelled', 'Отменена'),
+    )
+    
     shipment_number = models.CharField("Номер перевозки", max_length=50, unique=True)
     vehicle_info = models.CharField("Информация о транспорте", max_length=100, blank=True, null=True)
+    status = models.CharField("Статус", max_length=20, choices=STATUS_CHOICES, default='created')
     departure_time = models.DateTimeField("Время отправления")
-    arrival_time = models.DateTimeField("Время прибытия", blank=True, null=True)
+    estimated_arrival_time = models.DateTimeField("Расчетное время прибытия", blank=True, null=True)
+    arrival_time = models.DateTimeField("Фактическое время прибытия", blank=True, null=True)
     from_location = models.ForeignKey(
         Location, 
         related_name='departing_shipments', 
@@ -186,20 +198,53 @@ class Shipment(models.Model):
     def __str__(self):
         return f"Перевозка #{self.shipment_number}: {self.from_location.name} → {self.to_location.name}"
     
-    def mark_as_arrived(self):
+    def mark_as_in_transit(self):
         """
-        Отмечает перевозку как прибывшую и обновляет статусы товаров
+        Отмечает перевозку как отправленную в путь
         """
-        if not self.arrival_time:
-            self.arrival_time = timezone.now()
+        if self.status in ['created', 'loading']:
+            self.status = 'in_transit'
             self.save()
             
             # Обновить статусы товаров
             for item in self.items.all():
-                if self.to_location.location_type == 'pickup':
-                    item.update_status('delivered', self.to_location)
-                else:
-                    item.update_status('at_warehouse', self.to_location)
+                item.update_status('in_transit', self.from_location)
+    
+    def mark_as_arrived(self):
+        """
+        Отмечает перевозку как прибывшую, но еще не разгруженную
+        """
+        if self.status == 'in_transit':
+            self.status = 'arrived'
+            self.arrival_time = timezone.now()
+            self.save()
+            
+            # На этом этапе товары еще не перемещены, они всё ещё в перевозке
+    
+    def unload_items(self):
+        """
+        Разгрузка товаров на складе назначения
+        """
+        if self.status == 'arrived':
+            self.status = 'unloaded'
+            self.save()
+            
+            # Обновить статусы товаров только после разгрузки
+            for item in self.items.all():
+                item.update_status('at_warehouse', self.to_location)
+            
+            return True
+        return False
+    
+    def complete_shipment(self):
+        """
+        Завершает перевозку после подтверждения получения всех товаров
+        """
+        if self.status == 'unloaded':
+            self.status = 'completed'
+            self.save()
+            return True
+        return False
     
     class Meta:
         verbose_name = "Перевозка"

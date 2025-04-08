@@ -150,21 +150,20 @@ class RoutingEngine:
                     
                     # Create a direct shipment
                     departure_time = timezone.now() + timedelta(hours=1)
-                    arrival_time = departure_time + timedelta(hours=2)  # Default 2 hour travel time
+                    estimated_arrival_time = departure_time + timedelta(hours=2)  # Default 2 hour travel time
                     
                     shipment = Shipment.objects.create(
                         shipment_number=f"SH-{uuid.uuid4().hex[:8].upper()}",
                         from_location=from_location,
                         to_location=to_location,
                         departure_time=departure_time,
-                        arrival_time=arrival_time,
-                        vehicle_info=f"Auto-assigned Vehicle (Direct)"
+                        estimated_arrival_time=estimated_arrival_time,
+                        vehicle_info=f"Auto-assigned Vehicle (Direct)",
+                        status='created'
                     )
                     
-                    # Add items to shipment and update their status
-                    for item in location_items:
-                        shipment.items.add(item)
-                        item.update_status('in_transit', from_location)
+                    # We DON'T automatically add items to shipment anymore
+                    # Instead we'll show a loading interface where users can confirm item addition
                     
                     created_shipments.append(shipment)
                 except Exception as e:
@@ -178,21 +177,17 @@ class RoutingEngine:
                 for segment in route_segments:
                     # Create a shipment for this segment
                     departure_time = timezone.now() + timedelta(hours=1)  # Schedule for 1 hour later
-                    arrival_time = departure_time + segment['travel_time']
+                    estimated_arrival_time = departure_time + segment['travel_time']
                     
                     shipment = Shipment.objects.create(
                         shipment_number=f"SH-{uuid.uuid4().hex[:8].upper()}",
                         from_location=segment['from_location'],
                         to_location=segment['to_location'],
                         departure_time=departure_time,
-                        arrival_time=arrival_time,
-                        vehicle_info=f"Auto-assigned Vehicle"
+                        estimated_arrival_time=estimated_arrival_time,
+                        vehicle_info=f"Auto-assigned Vehicle",
+                        status='created'
                     )
-                    
-                    # Add items to shipment and update their status
-                    for item in current_items:
-                        shipment.items.add(item)
-                        item.update_status('in_transit', segment['from_location'])
                     
                     created_shipments.append(shipment)
                     
@@ -209,21 +204,17 @@ class RoutingEngine:
                 if default_warehouse:
                     # Create a shipment from default warehouse to destination
                     departure_time = timezone.now() + timedelta(hours=1)
-                    arrival_time = departure_time + timedelta(hours=2)  # Default 2 hour travel time
+                    estimated_arrival_time = departure_time + timedelta(hours=2)  # Default 2 hour travel time
                     
                     shipment = Shipment.objects.create(
                         shipment_number=f"SH-{uuid.uuid4().hex[:8].upper()}",
                         from_location=default_warehouse,
                         to_location=destination_location,
                         departure_time=departure_time,
-                        arrival_time=arrival_time,
-                        vehicle_info=f"Auto-assigned Vehicle (For new items)"
+                        estimated_arrival_time=estimated_arrival_time,
+                        vehicle_info=f"Auto-assigned Vehicle (For new items)",
+                        status='created'
                     )
-                    
-                    # Add items to shipment and update their status
-                    for item in items_without_location:
-                        shipment.items.add(item)
-                        item.update_status('in_transit', default_warehouse)
                     
                     created_shipments.append(shipment)
             except Exception as e:
