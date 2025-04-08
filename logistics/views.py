@@ -982,3 +982,61 @@ def shipment_cancel(request, shipment_id):
     
     messages.success(request, f'Перевозка #{shipment.shipment_number} отменена. Товары возвращены на склад отправления.')
     return redirect('shipment_detail', shipment_id=shipment.id)
+
+# At the end of the file, add the new function
+def shipment_delete(request, shipment_id):
+    """
+    Delete a shipment completely from the system.
+    Only shipments that are not in transit can be deleted.
+    """
+    shipment = get_object_or_404(Shipment, pk=shipment_id)
+    
+    # Check if deletion is allowed
+    if shipment.status == 'in_transit':
+        messages.error(request, 'Невозможно удалить перевозку, которая находится в пути.')
+        return redirect('shipment_detail', shipment_id=shipment.id)
+    
+    # Save shipment number for success message
+    shipment_number = shipment.shipment_number
+    
+    # Return items to original location if needed
+    for item in shipment.items.all():
+        if item.status == 'in_transit':
+            item.update_status('at_warehouse', shipment.from_location)
+    
+    # Delete the shipment
+    shipment.delete()
+    
+    messages.success(request, f'Перевозка #{shipment_number} успешно удалена')
+    return redirect('shipment_list')
+
+def order_delete(request, order_id):
+    """
+    Delete an order completely from the system.
+    Only orders that are not in transit can be deleted.
+    """
+    order = get_object_or_404(Order, pk=order_id)
+    
+    # Check if deletion is allowed based on status
+    if order.status == 'in_transit':
+        messages.error(request, 'Невозможно удалить заказ, находящийся в пути. Дождитесь завершения доставки.')
+        return redirect('order_detail', order_id=order.id)
+    
+    # Check if any items are in transit
+    if Item.objects.filter(order=order, status='in_transit').exists():
+        messages.error(request, 'Невозможно удалить заказ, содержащий товары в пути.')
+        return redirect('order_detail', order_id=order.id)
+    
+    # Store order ID for success message
+    order_id_for_message = order.id
+    seller = order.seller
+    
+    # Remove items from any shipments they might be in
+    for item in order.items.all():
+        item.shipments.clear()
+    
+    # Delete the order (will also delete items due to CASCADE)
+    order.delete()
+    
+    messages.success(request, f'Заказ #{order_id_for_message} успешно удален')
+    return redirect('seller_detail', seller_id=seller.id)

@@ -33,6 +33,7 @@ urlpatterns = [
     path('orders/<int:order_id>/', views.order_detail, name='order_detail'),
     path('orders/create/', views.order_create, name='order_create'),
     path('orders/<int:order_id>/edit/', views.order_edit, name='order_edit'),
+    path('orders/<int:order_id>/delete/', views.order_delete, name='order_delete'),
     path('orders/<int:order_id>/create-shipments/', views.create_shipments_for_order, name='create_shipments_for_order'),
     path('orders/<int:order_id>/add-item/', views.item_add, name='item_add'),
     path('items/<int:item_id>/edit/', views.item_edit, name='item_edit'),
@@ -43,6 +44,7 @@ urlpatterns = [
     path('shipments/', views.shipment_list, name='shipment_list'),
     path('shipments/<int:shipment_id>/', views.shipment_detail, name='shipment_detail'),
     path('shipments/create/', views.create_shipment_manual, name='create_shipment_manual'),
+    path('shipments/<int:shipment_id>/delete/', views.shipment_delete, name='shipment_delete'),
     
     # Shipment workflow views - new process stages
     path('shipments/<int:shipment_id>/loading/', views.shipment_loading, name='shipment_loading'),

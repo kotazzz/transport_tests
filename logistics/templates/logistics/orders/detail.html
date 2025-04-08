@@ -12,6 +12,9 @@
                     <a href="{% url 'order_edit' order.id %}" class="btn btn-light btn-sm me-2">
                         <i class="bi bi-pencil"></i> Редактировать
                     </a>
+                    <button type="button" class="btn btn-danger btn-sm me-2" data-bs-toggle="modal" data-bs-target="#deleteOrderModal">
+                        <i class="bi bi-trash"></i> Удалить
+                    </button>
                     <a href="{% url 'order_list' %}" class="btn btn-light btn-sm">
                         <i class="bi bi-arrow-left"></i> К списку заказов
                     </a>
@@ -366,6 +369,35 @@
                         {% endif %}
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно для подтверждения удаления заказа -->
+<div class="modal fade" id="deleteOrderModal" tabindex="-1" aria-labelledby="deleteOrderModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteOrderModalLabel">Подтверждение удаления</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Вы действительно хотите удалить заказ #{{ order.id }}?</p>
+                <div class="alert alert-danger">
+                    <i class="bi bi-exclamation-triangle"></i> Внимание! Это действие нельзя отменить.
+                    <ul class="mb-0 mt-2">
+                        <li>Все товары заказа будут удалены</li>
+                        <li>Связь с перевозками будет разорвана</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <form method="post" action="{% url 'order_delete' order.id %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger">Удалить заказ</button>
+                </form>
             </div>
         </div>
     </div>

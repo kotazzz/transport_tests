@@ -8,6 +8,11 @@
         <h1>Доставка #{{ shipment.shipment_number }}</h1>
         <div>
             <a href="{% url 'shipment_list' %}" class="btn btn-secondary">Назад к списку</a>
+            {% if shipment.status != 'completed' and shipment.status != 'cancelled' %}
+                <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteShipmentModal">
+                    Удалить перевозку
+                </button>
+            {% endif %}
         </div>
     </div>
 
@@ -92,52 +97,43 @@
                     <div class="mt-3">
                         {% if shipment.status == 'created' %}
                             <!-- Для созданной перевозки - начать загрузку -->
-                            <form method="post" action="{% url 'shipment_loading' shipment.id %}" class="d-inline">
-                                {% csrf_token %}
-                                <button type="submit" class="btn btn-primary">Начать загрузку</button>
-                            </form>
+                            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#startLoadingModal">
+                                Начать загрузку
+                            </button>
                             
                         {% elif shipment.status == 'loading' %}
                             <!-- Для перевозки в процессе загрузки -->
                             <a href="{% url 'add_items_to_shipment_enhanced' shipment.id %}" class="btn btn-primary">
                                 Добавить товары
                             </a>
-                            <form method="post" action="{% url 'shipment_start_transit' shipment.id %}" class="d-inline ml-2">
-                                {% csrf_token %}
-                                <button type="submit" class="btn btn-success">Отправить в путь</button>
-                            </form>
+                            <button type="button" class="btn btn-success ml-2" data-bs-toggle="modal" data-bs-target="#startTransitModal">
+                                Отправить в путь
+                            </button>
                             
                         {% elif shipment.status == 'in_transit' %}
                             <!-- Для перевозки в пути -->
-                            <form method="post" action="{% url 'shipment_mark_arrived' shipment.id %}" class="d-inline">
-                                {% csrf_token %}
-                                <button type="submit" class="btn btn-info">Отметить как прибывшую</button>
-                            </form>
+                            <button type="button" class="btn btn-info" data-bs-toggle="modal" data-bs-target="#markArrivedModal">
+                                Отметить как прибывшую
+                            </button>
                             
                         {% elif shipment.status == 'arrived' %}
                             <!-- Для прибывшей перевозки - разгрузка -->
-                            <form method="post" action="{% url 'shipment_unload' shipment.id %}" class="d-inline">
-                                {% csrf_token %}
-                                <button type="submit" class="btn btn-warning">Разгрузить товары</button>
-                            </form>
+                            <button type="button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#unloadModal">
+                                Разгрузить товары
+                            </button>
                             
                         {% elif shipment.status == 'unloaded' %}
                             <!-- Для разгруженной перевозки - завершение -->
-                            <form method="post" action="{% url 'shipment_complete' shipment.id %}" class="d-inline">
-                                {% csrf_token %}
-                                <button type="submit" class="btn btn-success">Завершить перевозку</button>
-                            </form>
+                            <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#completeModal">
+                                Завершить перевозку
+                            </button>
                         {% endif %}
                         
                         <!-- Кнопка отмены показывается для всех статусов кроме completed и cancelled -->
                         {% if shipment.status != 'completed' and shipment.status != 'cancelled' %}
-                            <form method="post" action="{% url 'shipment_cancel' shipment.id %}" class="d-inline ml-2">
-                                {% csrf_token %}
-                                <button type="submit" class="btn btn-danger" 
-                                        onclick="return confirm('Вы уверены, что хотите отменить перевозку? Все товары будут возвращены на склад отправления.')">
-                                    Отменить перевозку
-                                </button>
-                            </form>
+                            <button type="button" class="btn btn-danger ml-2" data-bs-toggle="modal" data-bs-target="#cancelShipmentModal">
+                                Отменить перевозку
+                            </button>
                         {% endif %}
                     </div>
                     
@@ -168,8 +164,15 @@
         
         <div class="col-md-5">
             <div class="card mb-4">
-                <div class="card-header">
+                <div class="card-header d-flex justify-content-between align-items-center">
                     <h5 class="card-title mb-0">Товары в доставке</h5>
+                    <div>
+                        {% if shipment.status == 'created' or shipment.status == 'loading' %}
+                            <a href="{% url 'add_items_to_shipment_enhanced' shipment.id %}" class="btn btn-sm btn-primary">
+                                <i class="bi bi-plus-circle"></i> Добавить товары
+                            </a>
+                        {% endif %}
+                    </div>
                 </div>
                 <div class="card-body">
                     {% if items %}
@@ -247,6 +250,180 @@
                         </li>
                     </ul>
                 </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальные окна для подтверждения действий -->
+
+<!-- Модальное окно для начала загрузки -->
+<div class="modal fade" id="startLoadingModal" tabindex="-1" aria-labelledby="startLoadingModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="startLoadingModalLabel">Начать загрузку перевозки</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Вы собираетесь начать процесс загрузки товаров в перевозку #{{ shipment.shipment_number }}.</p>
+                <p>После начала загрузки вы сможете добавлять товары в перевозку.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <form method="post" action="{% url 'shipment_loading' shipment.id %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-primary">Начать загрузку</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно для отправки в путь -->
+<div class="modal fade" id="startTransitModal" tabindex="-1" aria-labelledby="startTransitModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="startTransitModalLabel">Отправить перевозку в путь</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Вы собираетесь отправить перевозку #{{ shipment.shipment_number }} в путь.</p>
+                <p>Убедитесь, что все необходимые товары добавлены в перевозку.</p>
+                {% if not items %}
+                    <div class="alert alert-warning">
+                        <strong>Внимание!</strong> В перевозке нет товаров. Рекомендуется добавить товары перед отправкой.
+                    </div>
+                {% endif %}
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <form method="post" action="{% url 'shipment_start_transit' shipment.id %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-success">Отправить в путь</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно для отметки о прибытии -->
+<div class="modal fade" id="markArrivedModal" tabindex="-1" aria-labelledby="markArrivedModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="markArrivedModalLabel">Отметить перевозку как прибывшую</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Вы собираетесь отметить перевозку #{{ shipment.shipment_number }} как прибывшую в пункт назначения.</p>
+                <p>Фактическое время прибытия будет зарегистрировано как текущее время.</p>
+                <p>После прибытия требуется отдельно разгрузить товары.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <form method="post" action="{% url 'shipment_mark_arrived' shipment.id %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-info">Отметить как прибывшую</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно для разгрузки товаров -->
+<div class="modal fade" id="unloadModal" tabindex="-1" aria-labelledby="unloadModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="unloadModalLabel">Разгрузить товары</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Вы собираетесь разгрузить товары из перевозки #{{ shipment.shipment_number }}.</p>
+                <p>Все товары будут перемещены на склад {{ shipment.to_location.name }} и изменят свой статус на "На складе".</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <form method="post" action="{% url 'shipment_unload' shipment.id %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-warning">Разгрузить товары</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно для завершения перевозки -->
+<div class="modal fade" id="completeModal" tabindex="-1" aria-labelledby="completeModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="completeModalLabel">Завершить перевозку</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Вы собираетесь отметить перевозку #{{ shipment.shipment_number }} как завершенную.</p>
+                <p>После завершения перевозка больше не может быть изменена.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <form method="post" action="{% url 'shipment_complete' shipment.id %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-success">Завершить перевозку</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно для отмены перевозки -->
+<div class="modal fade" id="cancelShipmentModal" tabindex="-1" aria-labelledby="cancelShipmentModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="cancelShipmentModalLabel">Отменить перевозку</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Вы собираетесь отменить перевозку #{{ shipment.shipment_number }}.</p>
+                <p>Все товары будут возвращены на склад отправления.</p>
+                <div class="alert alert-danger">
+                    Это действие нельзя отменить!
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <form method="post" action="{% url 'shipment_cancel' shipment.id %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger">Отменить перевозку</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно для удаления перевозки -->
+<div class="modal fade" id="deleteShipmentModal" tabindex="-1" aria-labelledby="deleteShipmentModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteShipmentModalLabel">Удалить перевозку</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Вы собираетесь удалить перевозку #{{ shipment.shipment_number }}.</p>
+                <div class="alert alert-danger">
+                    <strong>Внимание!</strong> Это действие нельзя отменить! Перевозка будет полностью удалена из системы.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <form method="post" action="{% url 'shipment_delete' shipment.id %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger">Удалить перевозку</button>
+                </form>
             </div>
         </div>
     </div>
