@@ -255,9 +255,7 @@
                                     <td>
                                         <div class="btn-group">
                                             <a href="{% url 'shipment_detail' shipment.id %}" class="btn btn-sm btn-primary">Детали</a>
-                                            {% if not shipment.arrival_time %}
-                                                <a href="{% url 'shipment_mark_arrived' shipment.id %}" class="btn btn-sm btn-success">Принять перевозку</a>
-                                            {% endif %}
+                                            {% include "logistics/partials/delete_button.html" with object=shipment object_type="перевозку" delete_url="shipment_delete" %}
                                         </div>
                                     </td>
                                 </tr>

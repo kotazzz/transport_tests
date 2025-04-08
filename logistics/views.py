@@ -584,9 +584,23 @@ def item_delete(request, item_id):
     return redirect('order_detail', order_id=order.id)
 
 def create_shipment_manual(request):
-    """Create a shipment manually with improved flow"""
-    # Redirect to enhanced interface that will ask for source warehouse first
-    return redirect('warehouse_dashboard')
+    """Render the shipment creation form manually"""
+    if request.method == 'POST':
+        form = ShipmentForm(request.POST)
+        if form.is_valid():
+            shipment = form.save()
+            messages.success(request, f'Перевозка #{shipment.shipment_number} успешно создана')
+            return redirect('shipment_detail', shipment_id=shipment.id)
+    else:
+        # Generate a unique shipment number
+        shipment_number = f"SH-{uuid.uuid4().hex[:8].upper()}"
+        form = ShipmentForm(initial={'shipment_number': shipment_number, 'departure_time': timezone.now()})
+    
+    context = {
+        'form': form,
+        'page_title': 'Создание перевозки',
+    }
+    return render(request, 'logistics/shipments/form.html', context)
 
 def add_items_to_shipment(request, shipment_id):
     """
@@ -1001,13 +1015,13 @@ def shipment_cancel(request, shipment_id):
 def shipment_delete(request, shipment_id):
     """
     Delete a shipment completely from the system.
-    Only shipments that are not in transit can be deleted.
+    Only shipments that are not in transit or completed can be deleted.
     """
     shipment = get_object_or_404(Shipment, pk=shipment_id)
     
     # Check if deletion is allowed
-    if shipment.status == 'in_transit':
-        messages.error(request, 'Невозможно удалить перевозку, которая находится в пути.')
+    if shipment.status in ['in_transit', 'completed']:
+        messages.error(request, 'Невозможно удалить перевозку, которая находится в пути или завершена.')
         return redirect('shipment_detail', shipment_id=shipment.id)
     
     # Save shipment number for success message

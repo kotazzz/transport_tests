@@ -1,0 +1,30 @@
+{% if object.status != 'completed' and object.status != 'in_transit' %}
+    <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteModal-{{ object.id }}">
+        Удалить
+    </button>
+
+    <!-- Modal for confirming deletion -->
+    <div class="modal fade" id="deleteModal-{{ object.id }}" tabindex="-1" aria-labelledby="deleteModalLabel-{{ object.id }}" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="deleteModalLabel-{{ object.id }}">Удалить {{ object_type }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Вы уверены, что хотите удалить {{ object_type }} #{{ object.id }}?</p>
+                    <div class="alert alert-danger">
+                        Это действие нельзя отменить!
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <form method="post" action="{% url delete_url object.id %}">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-danger">Удалить</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endif %}

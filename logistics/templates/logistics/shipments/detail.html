@@ -8,11 +8,7 @@
         <h1>Доставка #{{ shipment.shipment_number }}</h1>
         <div>
             <a href="{% url 'shipment_list' %}" class="btn btn-secondary">Назад к списку</a>
-            {% if shipment.status != 'completed' and shipment.status != 'cancelled' %}
-                <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteShipmentModal">
-                    Удалить перевозку
-                </button>
-            {% endif %}
+            {% include "logistics/partials/delete_button.html" with object=shipment object_type="перевозку" delete_url="shipment_delete" %}
         </div>
     </div>
 
