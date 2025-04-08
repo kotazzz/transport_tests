@@ -125,6 +125,7 @@ class Item(models.Model):
         ('in_transit', 'В перевозке'),
         ('delivered', 'Доставлен'),
         ('returned', 'Возвращен'),
+        ('lost', 'Утерян'),
     )
     
     order = models.ForeignKey(Order, related_name='items', on_delete=models.CASCADE, verbose_name="Заказ")

@@ -790,10 +790,11 @@ def update_item_status(request, item_id, new_status):
     # Define allowed transitions to ensure process integrity
     allowed_transitions = {
         'created': ['at_warehouse'],
-        'at_warehouse': ['in_transit', 'returned'],
-        'in_transit': ['at_warehouse', 'delivered'],
+        'at_warehouse': ['in_transit', 'returned', 'lost'],
+        'in_transit': ['at_warehouse', 'delivered', 'lost'],
         'delivered': ['returned'],
-        'returned': ['at_warehouse']
+        'returned': ['at_warehouse'],
+        'lost': [],  # Lost is a terminal state
     }
     
     # Validate transition
