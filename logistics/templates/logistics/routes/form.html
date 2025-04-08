@@ -1,0 +1,130 @@
+{% extends 'base/base.html' %}
+
+{% block title %}{% if route %}Редактирование маршрута{% else %}Создание маршрута{% endif %}{% endblock %}
+
+{% block content %}
+<div class="container my-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        {% if route %}
+                            Редактирование маршрута: {{ route.from_location.name }} → {{ route.to_location.name }}
+                        {% else %}
+                            Создание нового маршрута
+                        {% endif %}
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" action="">
+                        {% csrf_token %}
+                        
+                        {% if form.non_field_errors %}
+                            <div class="alert alert-danger">
+                                {% for error in form.non_field_errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="{{ form.from_location.id_for_label }}" class="form-label">Откуда</label>
+                                {{ form.from_location }}
+                                {% if form.from_location.errors %}
+                                    <div class="text-danger">
+                                        {% for error in form.from_location.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                <label for="{{ form.to_location.id_for_label }}" class="form-label">Куда</label>
+                                {{ form.to_location }}
+                                {% if form.to_location.errors %}
+                                    <div class="text-danger">
+                                        {% for error in form.to_location.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="{{ form.cost.id_for_label }}" class="form-label">Стоимость (руб.)</label>
+                                {{ form.cost }}
+                                {% if form.cost.errors %}
+                                    <div class="text-danger">
+                                        {% for error in form.cost.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                <label for="{{ form.travel_time.id_for_label }}" class="form-label">Время в пути (часы)</label>
+                                {{ form.travel_time }}
+                                {% if form.travel_time.errors %}
+                                    <div class="text-danger">
+                                        {% for error in form.travel_time.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                                <small class="text-muted">Формат: HH:MM:SS</small>
+                            </div>
+                        </div>
+                        
+                        <div class="form-check mb-3">
+                            {{ form.active }}
+                            <label class="form-check-label" for="{{ form.active.id_for_label }}">
+                                Маршрут активен
+                            </label>
+                            {% if form.active.errors %}
+                                <div class="text-danger">
+                                    {% for error in form.active.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <a href="{% url 'route_list' %}" class="btn btn-secondary">Отмена</a>
+                            <button type="submit" class="btn btn-primary">Сохранить</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Добавляем классы стилей к полям формы
+    document.addEventListener('DOMContentLoaded', function() {
+        var selectFields = document.querySelectorAll('select');
+        var inputFields = document.querySelectorAll('input[type="text"], input[type="number"]');
+        
+        selectFields.forEach(function(field) {
+            field.classList.add('form-select');
+        });
+        
+        inputFields.forEach(function(field) {
+            field.classList.add('form-control');
+        });
+        
+        // Для чекбоксов
+        var checkboxes = document.querySelectorAll('input[type="checkbox"]');
+        checkboxes.forEach(function(checkbox) {
+            checkbox.classList.add('form-check-input');
+        });
+    });
+</script>
+{% endblock %}

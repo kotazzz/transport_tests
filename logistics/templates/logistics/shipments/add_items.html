@@ -1,0 +1,105 @@
+{% extends 'base/base.html' %}
+
+{% block title %}Добавление товаров в перевозку{% endblock %}
+
+{% block content %}
+<div class="container my-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        Добавление товаров в перевозку #{{ shipment.shipment_number }}
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-4">
+                        <p><strong>Откуда:</strong> {{ shipment.from_location.name }}</p>
+                        <p><strong>Куда:</strong> {{ shipment.to_location.name }}</p>
+                        <p><strong>Время отправления:</strong> {{ shipment.departure_time|date:"d.m.Y H:i" }}</p>
+                    </div>
+                    
+                    {% if form.fields.items.queryset.count > 0 %}
+                        <form method="post">
+                            {% csrf_token %}
+                            
+                            {% if form.non_field_errors %}
+                                <div class="alert alert-danger">
+                                    {% for error in form.non_field_errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                            
+                            <div class="mb-3">
+                                <h6>Доступные товары:</h6>
+                                <div class="form-check">
+                                    <input type="checkbox" id="select_all" class="form-check-input">
+                                    <label class="form-check-label" for="select_all">Выбрать все</label>
+                                </div>
+                                <hr>
+                                <div class="list-group">
+                                    {% for item in form.fields.items.queryset %}
+                                        <label class="list-group-item d-flex">
+                                            <input type="checkbox" name="items" value="{{ item.id }}" class="form-check-input me-2 item-checkbox">
+                                            <div>
+                                                <strong>{{ item.description }}</strong> (x{{ item.quantity }})
+                                                <br>
+                                                <small class="text-muted">
+                                                    Заказ: #{{ item.order.id }} | Статус: {{ item.get_status_display }}
+                                                </small>
+                                            </div>
+                                        </label>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            
+                            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                                <a href="{% url 'shipment_detail' shipment.id %}" class="btn btn-secondary">Отмена</a>
+                                <button type="submit" class="btn btn-primary">Добавить выбранные товары</button>
+                            </div>
+                        </form>
+                    {% else %}
+                        <div class="alert alert-warning">
+                            <i class="bi bi-exclamation-triangle"></i> На складе {{ shipment.from_location.name }} нет доступных товаров для перевозки.
+                        </div>
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <a href="{% url 'shipment_detail' shipment.id %}" class="btn btn-secondary">Назад к перевозке</a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const selectAllCheckbox = document.getElementById('select_all');
+        const itemCheckboxes = document.querySelectorAll('.item-checkbox');
+        
+        if (selectAllCheckbox) {
+            selectAllCheckbox.addEventListener('change', function() {
+                const isChecked = selectAllCheckbox.checked;
+                
+                itemCheckboxes.forEach(function(checkbox) {
+                    checkbox.checked = isChecked;
+                });
+            });
+            
+            // Обновление состояния "выбрать все" при изменении отдельных чекбоксов
+            itemCheckboxes.forEach(function(checkbox) {
+                checkbox.addEventListener('change', function() {
+                    const allChecked = Array.from(itemCheckboxes).every(cb => cb.checked);
+                    const anyChecked = Array.from(itemCheckboxes).some(cb => cb.checked);
+                    
+                    selectAllCheckbox.checked = allChecked;
+                    selectAllCheckbox.indeterminate = anyChecked && !allChecked;
+                });
+            });
+        }
+    });
+</script>
+{% endblock %}

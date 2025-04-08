@@ -1,0 +1,112 @@
+{% extends 'base/base.html' %}
+
+{% block title %}Перевозки{% endblock %}
+
+{% block content %}
+<div class="container my-4">
+    <h1 class="mb-4">Перевозки</h1>
+    
+    <!-- Фильтры -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="card-title mb-0">Фильтры</h5>
+        </div>
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-4">
+                    <label for="from_location" class="form-label">Откуда</label>
+                    <select name="from_location" id="from_location" class="form-select">
+                        <option value="">-- Все локации --</option>
+                        {% for location in locations %}
+                            <option value="{{ location.id }}" {% if request.GET.from_location == location.id|stringformat:"i" %}selected{% endif %}>
+                                {{ location.name }} ({{ location.get_location_type_display }})
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label for="to_location" class="form-label">Куда</label>
+                    <select name="to_location" id="to_location" class="form-select">
+                        <option value="">-- Все локации --</option>
+                        {% for location in locations %}
+                            <option value="{{ location.id }}" {% if request.GET.to_location == location.id|stringformat:"i" %}selected{% endif %}>
+                                {{ location.name }} ({{ location.get_location_type_display }})
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label for="status" class="form-label">Статус</label>
+                    <select name="status" id="status" class="form-select">
+                        <option value="">-- Все статусы --</option>
+                        <option value="arrived" {% if request.GET.status == 'arrived' %}selected{% endif %}>Доставлено</option>
+                        <option value="in_transit" {% if request.GET.status == 'in_transit' %}selected{% endif %}>В пути</option>
+                        <option value="pending" {% if request.GET.status == 'pending' %}selected{% endif %}>Ожидает отправки</option>
+                    </select>
+                </div>
+                <div class="col-12 d-flex justify-content-end">
+                    <button type="submit" class="btn btn-primary">Применить</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Таблица перевозок -->
+    <div class="card">
+        <div class="card-body">
+            {% if shipments %}
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Номер</th>
+                                <th>Откуда</th>
+                                <th>Куда</th>
+                                <th>Дата отправления</th>
+                                <th>Статус</th>
+                                <th>Товары</th>
+                                <th>Действия</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for shipment in shipments %}
+                                <tr>
+                                    <td>{{ shipment.shipment_number }}</td>
+                                    <td>{{ shipment.from_location.name }}</td>
+                                    <td>{{ shipment.to_location.name }}</td>
+                                    <td>{{ shipment.departure_time|date:"d.m.Y H:i" }}</td>
+                                    <td>
+                                        {% if shipment.arrival_time %}
+                                            <span class="badge bg-success">Доставлено</span>
+                                        {% elif shipment.departure_time > now %}
+                                            <span class="badge bg-warning">Ожидает отправки</span>
+                                        {% else %}
+                                            <span class="badge bg-primary">В пути</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ shipment.items.count }}</td>
+                                    <td>
+                                        <a href="{% url 'shipment_detail' shipment.id %}" class="btn btn-sm btn-info">
+                                            Детали
+                                        </a>
+                                        {% if not shipment.arrival_time %}
+                                            <form method="post" action="{% url 'mark_shipment_arrived' shipment.id %}" class="d-inline">
+                                                {% csrf_token %}
+                                                <button type="submit" class="btn btn-sm btn-success">
+                                                    Прибыла
+                                                </button>
+                                            </form>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <p>Перевозки не найдены.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

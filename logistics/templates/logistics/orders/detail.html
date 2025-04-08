@@ -1,0 +1,222 @@
+{% extends 'base/base.html' %}
+
+{% block title %}Заказ #{{ order.id }}{% endblock %}
+
+{% block content %}
+<div class="container my-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Заказ #{{ order.id }}</h1>
+        <div>
+            <a href="{% url 'order_edit' order.id %}" class="btn btn-warning">Редактировать</a>
+            <a href="{% url 'order_list' %}" class="btn btn-secondary">К списку заказов</a>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Информация о заказе</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-borderless">
+                        <tbody>
+                            <tr>
+                                <th style="width: 30%;">ID заказа:</th>
+                                <td>{{ order.id }}</td>
+                            </tr>
+                            <tr>
+                                <th>Продавец:</th>
+                                <td>
+                                    <a href="{% url 'seller_detail' order.seller.id %}">
+                                        {{ order.seller.name }}
+                                    </a>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>Дата создания:</th>
+                                <td>{{ order.created_at|date:"d.m.Y H:i" }}</td>
+                            </tr>
+                            <tr>
+                                <th>Статус:</th>
+                                <td>
+                                    <span class="badge {% if order.status == 'delivered' %}bg-success{% elif order.status == 'in_transit' %}bg-primary{% elif order.status == 'returned' %}bg-danger{% else %}bg-warning{% endif %}">
+                                        {{ order.get_status_display }}
+                                    </span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>Пункт назначения:</th>
+                                <td>
+                                    {% if order.destination %}
+                                        <a href="{% url 'pickup_detail' order.destination.id %}">
+                                            {{ order.destination.name }}
+                                        </a>
+                                        <br>
+                                        <small class="text-muted">{{ order.destination.address }}</small>
+                                    {% else %}
+                                        <span class="text-muted">Не указан</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">Товары в заказе</h5>
+                    <a href="{% url 'item_add' order.id %}" class="btn btn-sm btn-success">
+                        <i class="bi bi-plus"></i> Добавить товар
+                    </a>
+                </div>
+                <div class="card-body">
+                    {% if items %}
+                        <div class="table-responsive">
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>Описание</th>
+                                        <th>Кол-во</th>
+                                        <th>Статус</th>
+                                        <th>Локация</th>
+                                        <th>Действия</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for item in items %}
+                                        <tr>
+                                            <td>{{ item.description }}</td>
+                                            <td>{{ item.quantity }}</td>
+                                            <td>
+                                                <span class="badge {% if item.status == 'delivered' %}bg-success{% elif item.status == 'in_transit' %}bg-primary{% elif item.status == 'returned' %}bg-danger{% elif item.status == 'at_warehouse' %}bg-info{% else %}bg-secondary{% endif %}">
+                                                    {{ item.get_status_display }}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                {% if item.current_location %}
+                                                    <a href="{% if item.current_location.location_type == 'warehouse' %}{% url 'warehouse_detail' item.current_location.id %}{% else %}{% url 'pickup_detail' item.current_location.id %}{% endif %}">
+                                                        {{ item.current_location.name }}
+                                                    </a>
+                                                {% else %}
+                                                    <span class="text-muted">-</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <div class="d-flex gap-1">
+                                                    <a href="{% url 'item_edit' item.id %}" class="btn btn-sm btn-warning">
+                                                        <i class="bi bi-pencil"></i> Ред.
+                                                    </a>
+                                                    <form action="{% url 'item_delete' item.id %}" method="post" onsubmit="return confirm('Вы уверены, что хотите удалить этот товар?');">
+                                                        {% csrf_token %}
+                                                        <button type="submit" class="btn btn-sm btn-danger">
+                                                            <i class="bi bi-trash"></i> Удалить
+                                                        </button>
+                                                    </form>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <p>В этом заказе пока нет товаров.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-12">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Перевозки по заказу</h5>
+                </div>
+                <div class="card-body">
+                    {% if related_shipments %}
+                        <div class="table-responsive">
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>Номер</th>
+                                        <th>От</th>
+                                        <th>До</th>
+                                        <th>Дата отправления</th>
+                                        <th>Дата прибытия</th>
+                                        <th>Статус</th>
+                                        <th>Кол-во товаров</th>
+                                        <th>Действия</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for shipment in related_shipments %}
+                                        <tr>
+                                            <td>{{ shipment.shipment_number }}</td>
+                                            <td>{{ shipment.from_location.name }}</td>
+                                            <td>{{ shipment.to_location.name }}</td>
+                                            <td>{{ shipment.departure_time|date:"d.m.Y H:i" }}</td>
+                                            <td>
+                                                {% if shipment.arrival_time %}
+                                                    {{ shipment.arrival_time|date:"d.m.Y H:i" }}
+                                                {% else %}
+                                                    <span class="text-muted">Ожидается</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if shipment.arrival_time %}
+                                                    <span class="badge bg-success">Доставлено</span>
+                                                {% elif shipment.departure_time > now %}
+                                                    <span class="badge bg-warning">Ожидает отправки</span>
+                                                {% else %}
+                                                    <span class="badge bg-primary">В пути</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <!-- Make sure we're using the proper way to display item count -->
+                                                {{ shipment.items.count }}
+                                            </td>
+                                            <td>
+                                                <a href="{% url 'shipment_detail' shipment.id %}" class="btn btn-sm btn-info">
+                                                    Подробнее
+                                                </a>
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="d-flex justify-content-between align-items-center">
+                            <p class="mb-0">Для этого заказа пока нет перевозок.</p>
+                            
+                            {% if order.status == 'pending' and items and order.destination %}
+                                <form method="post" action="{% url 'create_shipments_for_order' order.id %}">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="bi bi-truck"></i> Создать перевозки для заказа
+                                    </button>
+                                </form>
+                            {% endif %}
+                        </div>
+                        
+                        {% if order.status == 'pending' and not items %}
+                            <div class="alert alert-warning mt-3">
+                                <i class="bi bi-exclamation-triangle"></i> Чтобы создать перевозки, добавьте товары в заказ.
+                            </div>
+                        {% elif order.status == 'pending' and not order.destination %}
+                            <div class="alert alert-warning mt-3">
+                                <i class="bi bi-exclamation-triangle"></i> Чтобы создать перевозки, укажите пункт назначения для заказа.
+                            </div>
+                        {% endif %}
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

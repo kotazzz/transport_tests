@@ -1,0 +1,480 @@
+{% extends 'base/base.html' %}
+
+{% block title %}Комплектация перевозки{% endblock %}
+
+{% block content %}
+<div class="container-fluid my-4">
+    <div class="row mb-4">
+        <div class="col">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h4 class="mb-0">Комплектация перевозки #{{ shipment.shipment_number }}</h4>
+                        <a href="{% url 'shipment_detail' shipment.id %}" class="btn btn-light">
+                            <i class="bi bi-check-lg"></i> Завершить комплектацию
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="mb-2">
+                                <small class="text-muted">Склад отправления</small>
+                                <h6>{{ shipment.from_location.name }}</h6>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="mb-2">
+                                <small class="text-muted">Пункт назначения</small>
+                                <h6>{{ shipment.to_location.name }}</h6>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="mb-2">
+                                <small class="text-muted">Дата отправления</small>
+                                <h6>{{ shipment.departure_time|date:"d.m.Y H:i" }}</h6>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="mb-2">
+                                <small class="text-muted">Статус</small>
+                                <h6><span class="badge bg-warning">Комплектуется</span></h6>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Фильтры -->
+    <div class="row mb-4">
+        <div class="col">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <form method="get" class="mb-0">
+                        <div class="row g-2 align-items-end">
+                            <div class="col-md-3">
+                                <label for="order_id" class="form-label"><i class="bi bi-search"></i> Фильтр по заказу</label>
+                                <select name="order_id" id="order_id" class="form-select">
+                                    <option value="">-- Все заказы --</option>
+                                    {% for order in available_orders %}
+                                        <option value="{{ order.id }}" {% if order_filter == order.id|stringformat:"i" %}selected{% endif %}>
+                                            Заказ #{{ order.id }} ({{ order.seller.name }})
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label for="description" class="form-label"><i class="bi bi-card-text"></i> Поиск по описанию</label>
+                                <input type="text" name="description" id="description" class="form-control" 
+                                       value="{{ description_filter|default:'' }}" placeholder="Введите описание товара">
+                            </div>
+                            <div class="col-md-3">
+                                <label for="status" class="form-label"><i class="bi bi-tag"></i> Статус товара</label>
+                                <select name="status" id="status" class="form-select">
+                                    <option value="">-- Все статусы --</option>
+                                    {% for status_value, status_label in status_choices %}
+                                        <option value="{{ status_value }}" {% if status_filter == status_value %}selected{% endif %}>
+                                            {{ status_label }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-3 d-flex justify-content-end">
+                                <div class="d-grid w-100">
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="bi bi-funnel"></i> Применить фильтры
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Левая колонка - доступные товары -->
+        <div class="col-md-7">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="bi bi-box"></i> Доступные товары <span class="badge bg-secondary ms-2">{{ available_items|length }}</span></h5>
+                    
+                    <div class="btn-group" role="group">
+                        <button type="button" id="view_table" class="btn btn-sm btn-outline-secondary active">
+                            <i class="bi bi-table"></i> Таблица
+                        </button>
+                        <button type="button" id="view_cards" class="btn btn-sm btn-outline-secondary">
+                            <i class="bi bi-grid"></i> Карточки
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="card-body">
+                    <!-- Форма для добавления товаров -->
+                    <form method="post" id="add_items_form">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="add">
+                        
+                        <!-- Табличный вид -->
+                        <div id="table_view" class="table-responsive">
+                            <table class="table table-hover">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th style="width: 5%">
+                                            <input type="checkbox" id="select_all_available" class="form-check-input">
+                                        </th>
+                                        <th style="width: 5%">ID</th>
+                                        <th style="width: 40%">Описание</th>
+                                        <th style="width: 10%">Кол-во</th>
+                                        <th style="width: 15%">Заказ</th>
+                                        <th style="width: 15%">Статус</th>
+                                        <th style="width: 10%">Действие</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for item in available_items %}
+                                        {% if item.id not in selected_item_ids %}
+                                            <tr>
+                                                <td>
+                                                    <input type="checkbox" name="item_ids" value="{{ item.id }}" 
+                                                           class="form-check-input available-item-checkbox">
+                                                </td>
+                                                <td>{{ item.id }}</td>
+                                                <td>{{ item.description }}</td>
+                                                <td>{{ item.quantity }}</td>
+                                                <td>
+                                                    <a href="{% url 'order_detail' item.order.id %}">
+                                                        #{{ item.order.id }}
+                                                    </a>
+                                                </td>
+                                                <td>
+                                                    {% if item.status == 'created' %}
+                                                        <span class="badge bg-secondary">Создан</span>
+                                                    {% elif item.status == 'at_warehouse' %}
+                                                        <span class="badge bg-primary">На складе</span>
+                                                    {% endif %}
+                                                </td>
+                                                <td>
+                                                    <button type="button" onclick="addSingleItem({{ item.id }})" 
+                                                            class="btn btn-sm btn-success">
+                                                        <i class="bi bi-plus-lg"></i>
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        {% endif %}
+                                    {% empty %}
+                                        <tr>
+                                            <td colspan="7" class="text-center py-3">
+                                                <div class="alert alert-warning mb-0">
+                                                    <i class="bi bi-exclamation-triangle me-2"></i>
+                                                    Нет доступных товаров для отправки
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <!-- Карточный вид -->
+                        <div id="card_view" class="row g-3" style="display: none;">
+                            {% for item in available_items %}
+                                {% if item.id not in selected_item_ids %}
+                                    <div class="col-md-6 col-lg-4">
+                                        <div class="card h-100 item-card">
+                                            <div class="card-body">
+                                                <div class="form-check mb-2">
+                                                    <input type="checkbox" name="item_ids" value="{{ item.id }}" 
+                                                           class="form-check-input available-item-checkbox">
+                                                    <label class="form-check-label fw-bold" for="item_{{ item.id }}">
+                                                        Товар #{{ item.id }}
+                                                    </label>
+                                                </div>
+                                                <h6 class="mb-1">{{ item.description }}</h6>
+                                                <div class="mb-2">
+                                                    <span class="text-muted">Количество:</span> {{ item.quantity }}
+                                                </div>
+                                                <div class="mb-2">
+                                                    <span class="text-muted">Заказ:</span>
+                                                    <a href="{% url 'order_detail' item.order.id %}">
+                                                        #{{ item.order.id }}
+                                                    </a>
+                                                </div>
+                                                <div class="mb-3">
+                                                    {% if item.status == 'created' %}
+                                                        <span class="badge bg-secondary">Создан</span>
+                                                    {% elif item.status == 'at_warehouse' %}
+                                                        <span class="badge bg-primary">На складе</span>
+                                                    {% endif %}
+                                                </div>
+                                                <div class="d-grid">
+                                                    <button type="button" onclick="addSingleItem({{ item.id }})" 
+                                                            class="btn btn-sm btn-success">
+                                                        <i class="bi bi-plus-lg me-1"></i> Добавить в перевозку
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                {% endif %}
+                            {% empty %}
+                                <div class="col-12">
+                                    <div class="alert alert-warning mb-0">
+                                        <i class="bi bi-exclamation-triangle me-2"></i>
+                                        Нет доступных товаров для отправки
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                        
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-3">
+                            <button type="submit" class="btn btn-primary" id="add_selected_btn" disabled>
+                                <i class="bi bi-plus-lg me-1"></i> Добавить выбранные товары
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Правая колонка - выбранные товары -->
+        <div class="col-md-5">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-box-seam"></i> Товары в перевозке 
+                        <span class="badge bg-light text-success ms-2">{{ selected_items|length }}</span>
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" id="remove_items_form">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="remove">
+                        
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th style="width: 5%">
+                                            <input type="checkbox" id="select_all_selected" class="form-check-input">
+                                        </th>
+                                        <th style="width: 5%">ID</th>
+                                        <th style="width: 45%">Описание</th>
+                                        <th style="width: 15%">Кол-во</th>
+                                        <th style="width: 15%">Заказ</th>
+                                        <th style="width: 15%">Действие</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for item in selected_items %}
+                                        <tr>
+                                            <td>
+                                                <input type="checkbox" name="item_ids" value="{{ item.id }}" 
+                                                       class="form-check-input selected-item-checkbox">
+                                            </td>
+                                            <td>{{ item.id }}</td>
+                                            <td>{{ item.description }}</td>
+                                            <td>{{ item.quantity }}</td>
+                                            <td>
+                                                <a href="{% url 'order_detail' item.order.id %}">
+                                                    #{{ item.order.id }}
+                                                </a>
+                                            </td>
+                                            <td>
+                                                <button type="button" onclick="removeSingleItem({{ item.id }})" 
+                                                        class="btn btn-sm btn-danger">
+                                                    <i class="bi bi-dash-lg"></i>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    {% empty %}
+                                        <tr>
+                                            <td colspan="6" class="text-center py-3">
+                                                <div class="alert alert-info mb-0">
+                                                    <i class="bi bi-info-circle me-2"></i> В перевозке пока нет товаров
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-3">
+                            <button type="submit" class="btn btn-outline-danger" id="remove_selected_btn" disabled>
+                                <i class="bi bi-dash-lg me-1"></i> Удалить выбранные товары
+                            </button>
+                        </div>
+                    </form>
+                </div>
+                
+                <div class="card-footer bg-light">
+                    <div class="d-grid">
+                        <a href="{% url 'shipment_detail' shipment.id %}" class="btn btn-lg btn-primary">
+                            <i class="bi bi-check-circle me-2"></i> Завершить комплектацию
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Переключение между табличным и карточным видом
+        const viewTableBtn = document.getElementById('view_table');
+        const viewCardsBtn = document.getElementById('view_cards');
+        const tableView = document.getElementById('table_view');
+        const cardView = document.getElementById('card_view');
+        
+        viewTableBtn.addEventListener('click', function() {
+            tableView.style.display = 'block';
+            cardView.style.display = 'none';
+            viewTableBtn.classList.add('active');
+            viewCardsBtn.classList.remove('active');
+        });
+        
+        viewCardsBtn.addEventListener('click', function() {
+            tableView.style.display = 'none';
+            cardView.style.display = 'block';
+            viewCardsBtn.classList.add('active');
+            viewTableBtn.classList.remove('active');
+        });
+        
+        // Функционал "Выбрать все" для доступных товаров
+        const selectAllAvailable = document.getElementById('select_all_available');
+        const availableCheckboxes = document.querySelectorAll('.available-item-checkbox');
+        const addSelectedBtn = document.getElementById('add_selected_btn');
+        
+        // Функционал "Выбрать все" для выбранных товаров
+        const selectAllSelected = document.getElementById('select_all_selected');
+        const selectedCheckboxes = document.querySelectorAll('.selected-item-checkbox');
+        const removeSelectedBtn = document.getElementById('remove_selected_btn');
+        
+        // Обработчик для доступных товаров
+        if (selectAllAvailable) {
+            selectAllAvailable.addEventListener('change', function() {
+                const isChecked = selectAllAvailable.checked;
+                
+                availableCheckboxes.forEach(function(checkbox) {
+                    checkbox.checked = isChecked;
+                });
+                
+                updateAddButtonState();
+            });
+            
+            // Обновление кнопки при изменении отдельных чекбоксов
+            availableCheckboxes.forEach(function(checkbox) {
+                checkbox.addEventListener('change', function() {
+                    updateAddButtonState();
+                    
+                    const allChecked = Array.from(availableCheckboxes).every(cb => cb.checked);
+                    const anyChecked = Array.from(availableCheckboxes).some(cb => cb.checked);
+                    
+                    selectAllAvailable.checked = allChecked;
+                    selectAllAvailable.indeterminate = anyChecked && !allChecked;
+                });
+            });
+        }
+        
+        // Обработчик для выбранных товаров
+        if (selectAllSelected) {
+            selectAllSelected.addEventListener('change', function() {
+                const isChecked = selectAllSelected.checked;
+                
+                selectedCheckboxes.forEach(function(checkbox) {
+                    checkbox.checked = isChecked;
+                });
+                
+                updateRemoveButtonState();
+            });
+            
+            // Обновление кнопки при изменении отдельных чекбоксов
+            selectedCheckboxes.forEach(function(checkbox) {
+                checkbox.addEventListener('change', function() {
+                    updateRemoveButtonState();
+                    
+                    const allChecked = Array.from(selectedCheckboxes).every(cb => cb.checked);
+                    const anyChecked = Array.from(selectedCheckboxes).some(cb => cb.checked);
+                    
+                    selectAllSelected.checked = allChecked;
+                    selectAllSelected.indeterminate = anyChecked && !allChecked;
+                });
+            });
+        }
+        
+        function updateAddButtonState() {
+            const anyChecked = Array.from(availableCheckboxes).some(cb => cb.checked);
+            addSelectedBtn.disabled = !anyChecked;
+        }
+        
+        function updateRemoveButtonState() {
+            const anyChecked = Array.from(selectedCheckboxes).some(cb => cb.checked);
+            removeSelectedBtn.disabled = !anyChecked;
+        }
+        
+        // Инициализация состояния кнопок
+        updateAddButtonState();
+        updateRemoveButtonState();
+        
+        // Улучшение юзабилити для карточек товаров
+        const itemCards = document.querySelectorAll('.item-card');
+        itemCards.forEach(card => {
+            card.addEventListener('click', function(e) {
+                // Не переключаем чекбокс если кликнули по кнопке
+                if (e.target.tagName !== 'BUTTON' && !e.target.closest('button')) {
+                    const checkbox = card.querySelector('input[type="checkbox"]');
+                    if (checkbox) {
+                        checkbox.checked = !checkbox.checked;
+                        checkbox.dispatchEvent(new Event('change'));
+                    }
+                }
+            });
+        });
+    });
+    
+    // Функция для добавления одного товара
+    function addSingleItem(itemId) {
+        const form = document.getElementById('add_items_form');
+        
+        // Очищаем все чекбоксы
+        document.querySelectorAll('.available-item-checkbox').forEach(cb => {
+            cb.checked = false;
+        });
+        
+        // Устанавливаем только для нужного товара
+        const checkbox = document.querySelector(`.available-item-checkbox[value="${itemId}"]`);
+        if (checkbox) {
+            checkbox.checked = true;
+        }
+        
+        // Отправляем форму
+        form.submit();
+    }
+    
+    // Функция для удаления одного товара
+    function removeSingleItem(itemId) {
+        const form = document.getElementById('remove_items_form');
+        
+        // Очищаем все чекбоксы
+        document.querySelectorAll('.selected-item-checkbox').forEach(cb => {
+            cb.checked = false;
+        });
+        
+        // Устанавливаем только для нужного товара
+        const checkbox = document.querySelector(`.selected-item-checkbox[value="${itemId}"]`);
+        if (checkbox) {
+            checkbox.checked = true;
+        }
+        
+        // Отправляем форму
+        form.submit();
+    }
+</script>
+{% endblock %}

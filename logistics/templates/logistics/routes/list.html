@@ -1,0 +1,93 @@
+{% extends 'base/base.html' %}
+
+{% block title %}Маршруты{% endblock %}
+
+{% block content %}
+<div class="container my-4">
+    <h1 class="mb-4">Маршруты</h1>
+    
+    <!-- Фильтры -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="card-title mb-0">Фильтры</h5>
+        </div>
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-4">
+                    <label for="from_location" class="form-label">Из локации</label>
+                    <select name="from_location" id="from_location" class="form-select">
+                        <option value="">-- Все локации --</option>
+                        {% for location in locations %}
+                            <option value="{{ location.id }}" {% if request.GET.from_location == location.id|stringformat:"i" %}selected{% endif %}>
+                                {{ location.name }} ({{ location.get_location_type_display }})
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label for="to_location" class="form-label">В локацию</label>
+                    <select name="to_location" id="to_location" class="form-select">
+                        <option value="">-- Все локации --</option>
+                        {% for location in locations %}
+                            <option value="{{ location.id }}" {% if request.GET.to_location == location.id|stringformat:"i" %}selected{% endif %}>
+                                {{ location.name }} ({{ location.get_location_type_display }})
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary">Применить</button>
+                </div>
+                <div class="col-md-2 d-flex align-items-end justify-content-end">
+                    <a href="{% url 'route_create' %}" class="btn btn-success">Создать маршрут</a>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Таблица маршрутов -->
+    <div class="card">
+        <div class="card-body">
+            {% if routes %}
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Из</th>
+                                <th>В</th>
+                                <th>Стоимость</th>
+                                <th>Время в пути</th>
+                                <th>Статус</th>
+                                <th>Действия</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for route in routes %}
+                                <tr>
+                                    <td>{{ route.from_location.name }}</td>
+                                    <td>{{ route.to_location.name }}</td>
+                                    <td>{{ route.cost }} руб.</td>
+                                    <td>{{ route.travel_time }}</td>
+                                    <td>
+                                        {% if route.active %}
+                                            <span class="badge bg-success">Активен</span>
+                                        {% else %}
+                                            <span class="badge bg-danger">Неактивен</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <a href="{% url 'route_detail' route.id %}" class="btn btn-sm btn-info">Детали</a>
+                                        <a href="{% url 'route_edit' route.id %}" class="btn btn-sm btn-warning">Изменить</a>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <p>Маршруты не найдены.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

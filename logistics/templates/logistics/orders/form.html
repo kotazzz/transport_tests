@@ -1,0 +1,88 @@
+{% extends 'base/base.html' %}
+
+{% block title %}{% if order %}Редактирование заказа{% else %}Создание заказа{% endif %}{% endblock %}
+
+{% block content %}
+<div class="container my-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        {% if order %}
+                            Редактирование заказа #{{ order.id }}
+                        {% else %}
+                            Создание нового заказа
+                        {% endif %}
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        {% if form.non_field_errors %}
+                            <div class="alert alert-danger">
+                                {% for error in form.non_field_errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                        
+                        <div class="mb-3">
+                            <label for="{{ form.seller.id_for_label }}" class="form-label">Продавец</label>
+                            {{ form.seller }}
+                            {% if form.seller.errors %}
+                                <div class="text-danger">
+                                    {% for error in form.seller.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                            <div class="mt-1">
+                                <a href="{% url 'seller_create' %}" class="btn btn-sm btn-outline-secondary">
+                                    <i class="bi bi-plus"></i> Добавить продавца
+                                </a>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="{{ form.status.id_for_label }}" class="form-label">Статус</label>
+                            {{ form.status }}
+                            {% if form.status.errors %}
+                                <div class="text-danger">
+                                    {% for error in form.status.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="{{ form.destination.id_for_label }}" class="form-label">Пункт выдачи</label>
+                            {{ form.destination }}
+                            {% if form.destination.errors %}
+                                <div class="text-danger">
+                                    {% for error in form.destination.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                            <div class="form-text">Выберите пункт выдачи для доставки заказа</div>
+                            <div class="mt-1">
+                                <a href="{% url 'location_create' %}" class="btn btn-sm btn-outline-secondary">
+                                    <i class="bi bi-plus"></i> Добавить пункт выдачи
+                                </a>
+                            </div>
+                        </div>
+                        
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <a href="{% url 'order_list' %}" class="btn btn-secondary">Отмена</a>
+                            <button type="submit" class="btn btn-primary">Сохранить</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

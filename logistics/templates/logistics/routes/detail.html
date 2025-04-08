@@ -1,0 +1,121 @@
+{% extends 'base/base.html' %}
+
+{% block title %}Маршрут: {{ route.from_location.name }} → {{ route.to_location.name }}{% endblock %}
+
+{% block content %}
+<div class="container my-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Маршрут: {{ route.from_location.name }} → {{ route.to_location.name }}</h1>
+        <div>
+            <a href="{% url 'route_edit' route.id %}" class="btn btn-warning">Редактировать</a>
+            <a href="{% url 'route_list' %}" class="btn btn-secondary">Назад к списку</a>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Информация о маршруте</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-borderless">
+                        <tbody>
+                            <tr>
+                                <th style="width: 30%;">Откуда:</th>
+                                <td>
+                                    {{ route.from_location.name }} 
+                                    ({{ route.from_location.get_location_type_display }})
+                                    <br>
+                                    <small class="text-muted">{{ route.from_location.address }}</small>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>Куда:</th>
+                                <td>
+                                    {{ route.to_location.name }} 
+                                    ({{ route.to_location.get_location_type_display }})
+                                    <br>
+                                    <small class="text-muted">{{ route.to_location.address }}</small>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>Стоимость:</th>
+                                <td>{{ route.cost }} руб.</td>
+                            </tr>
+                            <tr>
+                                <th>Время в пути:</th>
+                                <td>{{ route.travel_time }}</td>
+                            </tr>
+                            <tr>
+                                <th>Статус:</th>
+                                <td>
+                                    {% if route.active %}
+                                        <span class="badge bg-success">Активен</span>
+                                    {% else %}
+                                        <span class="badge bg-danger">Неактивен</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    
+                    <div class="mt-3 d-flex gap-2">
+                        <form method="post" action="{% url 'route_toggle_status' route.id %}">
+                            {% csrf_token %}
+                            {% if route.active %}
+                                <button type="submit" class="btn btn-danger">Деактивировать маршрут</button>
+                            {% else %}
+                                <button type="submit" class="btn btn-success">Активировать маршрут</button>
+                            {% endif %}
+                        </form>
+                        
+                        <form method="post" action="{% url 'route_delete' route.id %}" onsubmit="return confirm('Вы уверены, что хотите удалить этот маршрут? Эта операция не может быть отменена.');">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-outline-danger">Удалить маршрут</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Перевозки по этому маршруту</h5>
+                </div>
+                <div class="card-body">
+                    {% if recent_shipments %}
+                        <ul class="list-group">
+                            {% for shipment in recent_shipments %}
+                                <li class="list-group-item">
+                                    <a href="{% url 'shipment_detail' shipment.id %}">
+                                        {{ shipment.shipment_number }}
+                                    </a>
+                                    <br>
+                                    <small>
+                                        Отправление: {{ shipment.departure_time|date:"d.m.Y H:i" }}
+                                        {% if shipment.arrival_time %}
+                                            <br>
+                                            Прибытие: {{ shipment.arrival_time|date:"d.m.Y H:i" }}
+                                        {% endif %}
+                                    </small>
+                                </li>
+                            {% endfor %}
+                        </ul>
+                        {% if shipment_count > 5 %}
+                            <div class="mt-2 text-center">
+                                <a href="{% url 'shipment_list' %}?from_location={{ route.from_location.id }}&to_location={{ route.to_location.id }}" class="btn btn-sm btn-outline-primary">
+                                    Показать все ({{ shipment_count }})
+                                </a>
+                            </div>
+                        {% endif %}
+                    {% else %}
+                        <p>По этому маршруту еще не было перевозок.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

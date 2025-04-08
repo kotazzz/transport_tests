@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Логистическая система{% endblock %}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #0d6efd;
+            --secondary-color: #6c757d;
+            --success-color: #198754;
+            --danger-color: #dc3545;
+            --warning-color: #ffc107;
+            --info-color: #0dcaf0;
+        }
+        
+        body {
+            padding-top: 56px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            background-color: #f8f9fa;
+            color: #333;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        .main-content {
+            flex: 1;
+            padding: 20px;
+        }
+        
+        .sidebar {
+            background-color: white;
+            height: calc(100vh - 56px);
+            position: sticky;
+            top: 56px;
+            padding: 20px;
+            overflow-y: auto;
+            border-right: 1px solid #dee2e6;
+            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+        }
+        
+        .main-column {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0 15px;
+        }
+        
+        .footer {
+            background-color: #343a40;
+            padding: 15px 0;
+            margin-top: auto;
+            color: #f8f9fa;
+        }
+        
+        .nav-link {
+            color: #495057;
+            border-radius: 4px;
+            margin-bottom: 5px;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+        }
+        
+        .nav-link:hover {
+            background-color: rgba(13, 110, 253, 0.1);
+        }
+        
+        .nav-link.active {
+            background-color: var(--primary-color);
+            color: white !important;
+        }
+        
+        .nav-link i {
+            margin-right: 8px;
+        }
+        
+        .nav-tabs .nav-link.active {
+            background-color: var(--primary-color);
+            color: white !important;
+            border-color: var(--primary-color);
+        }
+        
+        .tab-content {
+            padding: 15px;
+            border: 1px solid #dee2e6;
+            border-top: none;
+        }
+        
+        .btn i {
+            margin-right: 5px;
+        }
+        
+        .card {
+            margin-bottom: 20px;
+            border: none;
+            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+        }
+        
+        .card-header {
+            font-weight: 500;
+        }
+        
+        .table thead th {
+            background-color: #f8f9fa;
+            font-weight: 500;
+        }
+        
+        .page-title {
+            margin-bottom: 25px;
+            font-weight: 600;
+            color: #212529;
+        }
+        
+        /* Добавленные стили для перевозок и заказов */
+        .status-badge {
+            font-weight: normal;
+            padding: 0.4em 0.6em;
+        }
+        
+        .dashboard-widget {
+            transition: transform 0.2s;
+        }
+        
+        .dashboard-widget:hover {
+            transform: translateY(-5px);
+        }
+        
+        /* Таблицы с полосами */
+        .table-striped > tbody > tr:nth-of-type(odd) > * {
+            background-color: rgba(0, 0, 0, 0.02);
+        }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
+        <div class="container">
+            <a class="navbar-brand" href="{% url 'dashboard' %}">
+                <i class="bi bi-truck me-2"></i> Логистическая система
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarSupportedContent">
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'dashboard' %}">
+                            <i class="bi bi-house-door"></i> Главная
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'order_list' %}">
+                            <i class="bi bi-box"></i> Заказы
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'shipment_list' %}">
+                            <i class="bi bi-truck"></i> Перевозки
+                        </a>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="locationsDropdown" role="button" data-bs-toggle="dropdown">
+                            <i class="bi bi-geo-alt"></i> Локации
+                        </a>
+                        <ul class="dropdown-menu" aria-labelledby="locationsDropdown">
+                            <li>
+                                <a class="dropdown-item" href="{% url 'warehouse_dashboard' %}">
+                                    <i class="bi bi-building"></i> Склады
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="{% url 'pickup_dashboard' %}">
+                                    <i class="bi bi-shop"></i> Пункты выдачи
+                                </a>
+                            </li>
+                        </ul>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'seller_dashboard' %}">
+                            <i class="bi bi-people"></i> Продавцы
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'route_list' %}">
+                            <i class="bi bi-map"></i> Маршруты
+                        </a>
+                    </li>
+                </ul>
+                <div class="d-flex">
+                    <a href="{% url 'dashboard' %}" class="btn btn-outline-light">
+                        <i class="bi bi-gear"></i> Настройки
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container-fluid main-content">
+        <div class="row">
+            {% block sidebar %}
+            <div class="col-md-3 col-lg-2 sidebar">
+                <div class="d-flex flex-column">
+                    <h5 class="mb-3">
+                        <i class="bi bi-list"></i> Навигация
+                    </h5>
+                    <hr>
+                    {% block sidebar_content %}
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.path == '/' %}active{% endif %}" href="{% url 'dashboard' %}">
+                                <i class="bi bi-speedometer2"></i> Панель управления
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if '/orders/' in request.path %}active{% endif %}" href="{% url 'order_list' %}">
+                                <i class="bi bi-box"></i> Заказы
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if '/shipments/' in request.path %}active{% endif %}" href="{% url 'shipment_list' %}">
+                                <i class="bi bi-truck"></i> Перевозки
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if '/routes/' in request.path %}active{% endif %}" href="{% url 'route_list' %}">
+                                <i class="bi bi-map"></i> Маршруты
+                            </a>
+                        </li>
+                    </ul>
+                    
+                    <h6 class="mt-4 mb-2 text-muted">Локации</h6>
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link {% if '/warehouse/' in request.path %}active{% endif %}" href="{% url 'warehouse_dashboard' %}">
+                                <i class="bi bi-building"></i> Склады
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if '/pickup/' in request.path %}active{% endif %}" href="{% url 'pickup_dashboard' %}">
+                                <i class="bi bi-shop"></i> Пункты выдачи
+                            </a>
+                        </li>
+                    </ul>
+                    
+                    <h6 class="mt-4 mb-2 text-muted">Партнеры</h6>
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link {% if '/seller/' in request.path %}active{% endif %}" href="{% url 'seller_dashboard' %}">
+                                <i class="bi bi-people"></i> Продавцы
+                            </a>
+                        </li>
+                    </ul>
+                    
+                    <div class="mt-4">
+                        <a href="{% url 'order_create' %}" class="btn btn-primary w-100 mb-2">
+                            <i class="bi bi-plus-lg"></i> Новый заказ
+                        </a>
+                        <a href="{% url 'create_shipment_manual' %}" class="btn btn-outline-success w-100">
+                            <i class="bi bi-plus-lg"></i> Новая перевозка
+                        </a>
+                    </div>
+                    {% endblock %}
+                </div>
+            </div>
+            {% endblock %}
+            
+            <div class="{% block main_column_class %}col-md-9 col-lg-10 main-column{% endblock %}">
+                <div class="container">
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show shadow-sm" role="alert">
+                                <i class="bi 
+                                    {% if message.tags == 'success' %}bi-check-circle
+                                    {% elif message.tags == 'info' %}bi-info-circle
+                                    {% elif message.tags == 'warning' %}bi-exclamation-triangle
+                                    {% elif message.tags == 'error' %}bi-x-circle
+                                    {% else %}bi-bell{% endif %} me-2"></i>
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                    
+                    <h1 class="page-title">{% block page_title %}{% endblock %}</h1>
+                    
+                    {% block content %}{% endblock %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container text-center">
+            <span>© 2025 Логистическая система для дипломного проекта</span>
+        </div>
+    </footer>
+
+    <!-- JavaScript -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Активация текущего пункта меню на основе URL
+            const currentUrl = window.location.pathname;
+            const navLinks = document.querySelectorAll('.nav-link');
+            
+            navLinks.forEach(link => {
+                const linkPath = link.getAttribute('href');
+                if (currentUrl.includes(linkPath) && linkPath !== '/') {
+                    link.classList.add('active');
+                } else if (currentUrl === '/' && linkPath === '/') {
+                    link.classList.add('active');
+                }
+            });
+        });
+    </script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

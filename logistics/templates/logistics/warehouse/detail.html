@@ -1,0 +1,180 @@
+{% extends "base/base.html" %}
+
+{% block title %}Логистическая система - {{ warehouse.name }}{% endblock %}
+
+{% block page_title %}Склад: {{ warehouse.name }}{% endblock %}
+
+{% block content %}
+<div class="card mb-4">
+    <div class="card-header">
+        Информация о складе
+    </div>
+    <div class="card-body">
+        <dl class="row">
+            <dt class="col-sm-3">Название:</dt>
+            <dd class="col-sm-9">{{ warehouse.name }}</dd>
+            
+            <dt class="col-sm-3">Адрес:</dt>
+            <dd class="col-sm-9">{{ warehouse.address }}</dd>
+            
+            <dt class="col-sm-3">Координаты:</dt>
+            <dd class="col-sm-9">
+                {% if warehouse.latitude and warehouse.longitude %}
+                    {{ warehouse.latitude }}, {{ warehouse.longitude }}
+                {% else %}
+                    Не указаны
+                {% endif %}
+            </dd>
+        </dl>
+        <div class="text-end">
+            <a href="/admin/logistics/location/{{ warehouse.id }}/change/" class="btn btn-secondary">Редактировать</a>
+            <a href="{% url 'warehouse_dashboard' %}" class="btn btn-primary">Назад к списку</a>
+        </div>
+    </div>
+</div>
+
+<!-- Кнопка создания перевозки -->
+<div class="mb-4">
+    <a href="{% url 'create_shipment_from_warehouse' warehouse.id %}" class="btn btn-success btn-lg">
+        <i class="bi bi-truck"></i> Создать новую перевозку
+    </a>
+</div>
+
+<ul class="nav nav-tabs mb-4" id="warehouseTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="items-tab" data-bs-toggle="tab" data-bs-target="#items" type="button" role="tab">
+            Товары на складе <span class="badge bg-primary">{{ warehouse_items.count }}</span>
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="incoming-tab" data-bs-toggle="tab" data-bs-target="#incoming" type="button" role="tab">
+            Входящие перевозки <span class="badge bg-info">{{ incoming_shipments.count }}</span>
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="outgoing-tab" data-bs-toggle="tab" data-bs-target="#outgoing" type="button" role="tab">
+            Исходящие перевозки <span class="badge bg-warning">{{ outgoing_shipments.count }}</span>
+        </button>
+    </li>
+</ul>
+
+<div class="tab-content" id="warehouseTabsContent">
+    <div class="tab-pane fade show active" id="items" role="tabpanel">
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>ID товара</th>
+                        <th>Описание</th>
+                        <th>Кол-во</th>
+                        <th>Статус</th>
+                        <th>Заказ</th>
+                        <th>Действия</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in warehouse_items %}
+                    <tr>
+                        <td>{{ item.id }}</td>
+                        <td>{{ item.description }}</td>
+                        <td>{{ item.quantity }}</td>
+                        <td>
+                            {% if item.status == 'created' %}
+                                <span class="badge bg-secondary">Создан</span>
+                            {% elif item.status == 'at_warehouse' %}
+                                <span class="badge bg-primary">На складе</span>
+                            {% elif item.status == 'in_transit' %}
+                                <span class="badge bg-info">В перевозке</span>
+                            {% elif item.status == 'delivered' %}
+                                <span class="badge bg-success">Доставлен</span>
+                            {% elif item.status == 'returned' %}
+                                <span class="badge bg-danger">Возврат</span>
+                            {% endif %}
+                        </td>
+                        <td><a href="{% url 'order_detail' item.order.id %}">Заказ #{{ item.order.id }}</a></td>
+                        <td>
+                            <a href="/admin/logistics/item/{{ item.id }}/change/" class="btn btn-sm btn-secondary">Изменить</a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center">Нет товаров на складе</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <div class="tab-pane fade" id="incoming" role="tabpanel">
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Номер перевозки</th>
+                        <th>Откуда</th>
+                        <th>Ожидаемое прибытие</th>
+                        <th>Кол-во товаров</th>
+                        <th>Действия</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for shipment in incoming_shipments %}
+                    <tr>
+                        <td>{{ shipment.shipment_number }}</td>
+                        <td>{{ shipment.from_location }}</td>
+                        <td>{{ shipment.arrival_time|date:"d.m.Y H:i"|default:"Не указано" }}</td>
+                        <td>{{ shipment.items.count }} шт.</td>
+                        <td>
+                            <div class="btn-group">
+                                <a href="{% url 'shipment_detail' shipment.id %}" class="btn btn-sm btn-primary">Детали</a>
+                                {% if not shipment.arrival_time %}
+                                    <a href="{% url 'mark_shipment_arrived' shipment.id %}" class="btn btn-sm btn-success">Отметить прибытие</a>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center">Нет входящих перевозок</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <div class="tab-pane fade" id="outgoing" role="tabpanel">
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Номер перевозки</th>
+                        <th>Куда</th>
+                        <th>Запланированное отправление</th>
+                        <th>Кол-во товаров</th>
+                        <th>Действия</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for shipment in outgoing_shipments %}
+                    <tr>
+                        <td>{{ shipment.shipment_number }}</td>
+                        <td>{{ shipment.to_location }}</td>
+                        <td>{{ shipment.departure_time|date:"d.m.Y H:i" }}</td>
+                        <td>{{ shipment.items.count }} шт.</td>
+                        <td>
+                            <a href="{% url 'shipment_detail' shipment.id %}" class="btn btn-sm btn-primary">Детали</a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center">Нет исходящих перевозок</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
