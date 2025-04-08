@@ -260,8 +260,6 @@ class LogisticsTests(TestCase):
     def test_order_delete_view(self):
         """Test the order delete view"""
         url = reverse("order_delete", args=[self.order.id])
-        # response = self.client.get(url) # Remove GET request
-        # self.assertEqual(response.status_code, 302) # Remove assertion
 
         # Test delete
         response = self.client.post(url)
@@ -308,8 +306,6 @@ class LogisticsTests(TestCase):
     def test_item_delete_view(self):
         """Test the item delete view"""
         url = reverse("item_delete", args=[self.item.id])
-        # response = self.client.get(url) # Remove GET request
-        # self.assertEqual(response.status_code, 302) # Remove assertion
 
         # Test delete
         response = self.client.post(url)
@@ -337,8 +333,6 @@ class LogisticsTests(TestCase):
     def test_shipment_delete_view(self):
         """Test the shipment delete view"""
         url = reverse("shipment_delete", args=[self.shipment.id])
-        # response = self.client.get(url) # Remove GET request
-        # self.assertEqual(response.status_code, 302) # Remove assertion
 
         # Test delete
         response = self.client.post(url)
@@ -403,6 +397,8 @@ class LogisticsTests(TestCase):
     def test_route_delete_view(self):
         """Test the route delete view"""
         url = reverse("route_delete", args=[self.route.id])
+        self.route.active = False
+        self.route.save()
 
         # Test delete
         response = self.client.post(url)
