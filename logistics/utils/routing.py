@@ -26,7 +26,7 @@ class RoutingEngine:
         for route in active_routes:
             # Add edge to graph with cost as weight
             graph[route.from_location.id][route.to_location.id] = {
-                "cost": float(route.cost),
+                "cost": 1.0,
                 "travel_time": route.travel_time,
                 "route_id": route.id,
             }
@@ -77,7 +77,7 @@ class RoutingEngine:
                 distance = current_distance + edge_data["cost"]
 
                 # If we found a better path to the neighbor
-                if distance < distances[neighbor]:
+                if neighbor not in distances or distance < distances[neighbor]:
                     distances[neighbor] = distance
                     predecessors[neighbor] = current_node
                     route_info[(current_node, neighbor)] = edge_data

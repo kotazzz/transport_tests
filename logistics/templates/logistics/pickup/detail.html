@@ -25,15 +25,8 @@
                     <dl class="row mb-0">
                         <dt class="col-sm-4">Адрес:</dt>
                         <dd class="col-sm-8">{{ pickup.address }}</dd>
-                        
-                        <dt class="col-sm-4">Координаты:</dt>
-                        <dd class="col-sm-8">
-                            {% if pickup.latitude and pickup.longitude %}
-                                {{ pickup.latitude }}, {{ pickup.longitude }}
-                            {% else %}
-                                Не указаны
-                            {% endif %}
-                        </dd>
+
+                        <!-- Removed Coordinates Row -->
                     </dl>
                 </div>
                 <div class="col-md-6">
@@ -70,9 +63,10 @@
                     <h5 class="card-title"><i class="bi bi-truck"></i> Поставки</h5>
                     <p class="card-text">Ожидаемые поставки: <strong>{{ incoming_shipments.count }}</strong></p>
                     <div class="d-grid">
-                        <a href="#incoming" class="btn btn-info" data-bs-toggle="tab" data-bs-target="#incoming">
+                        <!-- Corrected button attributes -->
+                        <button class="btn btn-info" type="button" data-bs-toggle="tab" data-bs-target="#incoming">
                             <i class="bi bi-box-seam"></i> Просмотреть ожидаемые поставки
-                        </a>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -238,24 +232,34 @@
                                 <tr>
                                     <td><strong>{{ shipment.shipment_number }}</strong></td>
                                     <td>{{ shipment.from_location.name }}</td>
-                                    <td>{{ shipment.departure_time|date:"d.m.Y H:i" }}</td>
-                                    <td>{{ shipment.arrival_time|date:"d.m.Y H:i"|default:"Не указано" }}</td>
+                                    <td>{{ shipment.departure_time|date:"d.m.Y H:i"|default:"—" }}</td>
                                     <td>
-                                        {% if shipment.arrival_time %}
-                                            {% if shipment.arrival_time <= now %}
-                                                <span class="badge bg-success">Прибыла</span>
-                                            {% else %}
-                                                <span class="badge bg-warning">Ожидается</span>
-                                            {% endif %}
+                                        {% if shipment.status in 'in_transit,arrived,unloaded,completed' %}
+                                            {{ shipment.estimated_arrival_time|date:"d.m.Y H:i"|default:"Не рассчитано" }}
                                         {% else %}
-                                            <span class="badge bg-info">В пути</span>
+                                            <span class="text-muted">—</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <!-- Updated status display using shipment.status -->
+                                        <span class="badge
+                                            {% if shipment.status == 'arrived' %}bg-success
+                                            {% elif shipment.status == 'in_transit' %}bg-info
+                                            {% else %}bg-secondary{% endif %}">
+                                            {{ shipment.get_status_display }}
+                                        </span>
+                                        {% if shipment.status == 'arrived' and shipment.arrival_time %}
+                                            <br><small class="text-muted">Прибыла: {{ shipment.arrival_time|date:"d.m.Y H:i" }}</small>
                                         {% endif %}
                                     </td>
                                     <td>{{ shipment.items.count }} шт.</td>
                                     <td>
                                         <div class="btn-group">
                                             <a href="{% url 'shipment_detail' shipment.id %}" class="btn btn-sm btn-primary">Детали</a>
-                                            {% include "logistics/partials/delete_button.html" with object=shipment object_type="перевозку" delete_url="shipment_delete" %}
+                                            {% if shipment.status == 'arrived' %}
+                                                <!-- Button to unload, maybe link to unload view -->
+                                                <a href="{% url 'shipment_unload' shipment.id %}" class="btn btn-sm btn-warning">Разгрузить</a>
+                                            {% endif %}
                                         </div>
                                     </td>
                                 </tr>
@@ -281,11 +285,15 @@
                             <div class="timeline">
                                 {% for shipment in incoming_shipments %}
                                 <div class="timeline-item">
-                                    <div class="timeline-marker {% if not shipment.arrival_time %}bg-info{% elif shipment.arrival_time <= now %}bg-success{% else %}bg-warning{% endif %}"></div>
+                                    <!-- Updated marker color based on status -->
+                                    <div class="timeline-marker {% if shipment.status == 'arrived' %}bg-success{% elif shipment.status == 'in_transit' %}bg-info{% else %}bg-secondary{% endif %}"></div>
                                     <div class="timeline-content">
                                         <h6>{{ shipment.shipment_number }} от {{ shipment.from_location.name }}</h6>
                                         <p>
-                                            Ожидаемое прибытие: {{ shipment.arrival_time|date:"d.m.Y H:i"|default:"Не указано" }}<br>
+                                            {% if shipment.status in 'in_transit,arrived,unloaded,completed' %}
+                                                Ожидаемое прибытие: {{ shipment.estimated_arrival_time|date:"d.m.Y H:i"|default:"Не рассчитано" }}<br>
+                                            {% endif %}
+                                            Статус: {{ shipment.get_status_display }}<br>
                                             Количество товаров: {{ shipment.items.count }} шт.
                                         </p>
                                     </div>

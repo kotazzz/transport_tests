@@ -2,6 +2,7 @@ from django import forms
 from django.core.exceptions import ValidationError
 from .models import Route, Seller, Location, Order, Item, Shipment
 from datetime import timedelta
+import shortuuid
 
 
 class RouteForm(forms.ModelForm):
@@ -9,12 +10,11 @@ class RouteForm(forms.ModelForm):
 
     class Meta:
         model = Route
-        fields = ["from_location", "to_location", "cost", "travel_time", "active"]
+        fields = ["from_location", "to_location", "travel_time", "active"]
         widgets = {
             "from_location": forms.Select(attrs={"class": "form-select"}),
             "to_location": forms.Select(attrs={"class": "form-select"}),
-            "cost": forms.NumberInput(attrs={"class": "form-control", "step": "0.01"}),
-            "travel_time": forms.TextInput(attrs={"class": "form-control"}),
+            "travel_time": forms.TextInput(attrs={"class": "form-control", "placeholder": "ДД ЧЧ:ММ:СС"}),
             "active": forms.CheckboxInput(attrs={"class": "form-check-input"}),
         }
 
@@ -48,17 +48,11 @@ class LocationForm(forms.ModelForm):
 
     class Meta:
         model = Location
-        fields = ["name", "location_type", "address", "latitude", "longitude"]
+        fields = ["name", "location_type", "address"]
         widgets = {
             "name": forms.TextInput(attrs={"class": "form-control"}),
             "location_type": forms.Select(attrs={"class": "form-select"}),
             "address": forms.TextInput(attrs={"class": "form-control"}),
-            "latitude": forms.NumberInput(
-                attrs={"class": "form-control", "step": "any"}
-            ),
-            "longitude": forms.NumberInput(
-                attrs={"class": "form-control", "step": "any"}
-            ),
         }
 
 
@@ -104,21 +98,23 @@ class ItemForm(forms.ModelForm):
 class ShipmentForm(forms.ModelForm):
     """Форма для создания отправления вручную"""
 
+    # Generate a default shipment number
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if not self.instance.pk and not self.initial.get('shipment_number'):
+            self.initial['shipment_number'] = f"SHP-{shortuuid.ShortUUID().random(length=8).upper()}"
+
     class Meta:
         model = Shipment
         fields = [
             "shipment_number",
             "vehicle_info",
-            "departure_time",
             "from_location",
             "to_location",
         ]
         widgets = {
-            "shipment_number": forms.TextInput(attrs={"class": "form-control"}),
+            "shipment_number": forms.TextInput(attrs={"class": "form-control", "readonly": "readonly"}),
             "vehicle_info": forms.TextInput(attrs={"class": "form-control"}),
-            "departure_time": forms.DateTimeInput(
-                attrs={"class": "form-control", "type": "datetime-local"}
-            ),
             "from_location": forms.Select(attrs={"class": "form-select"}),
             "to_location": forms.Select(attrs={"class": "form-select"}),
         }

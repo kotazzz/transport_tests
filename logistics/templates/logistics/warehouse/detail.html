@@ -25,15 +25,8 @@
                     <dl class="row mb-0">
                         <dt class="col-sm-4">Адрес:</dt>
                         <dd class="col-sm-8">{{ warehouse.address }}</dd>
-                        
-                        <dt class="col-sm-4">Координаты:</dt>
-                        <dd class="col-sm-8">
-                            {% if warehouse.latitude and warehouse.longitude %}
-                                {{ warehouse.latitude }}, {{ warehouse.longitude }}
-                            {% else %}
-                                Не указаны
-                            {% endif %}
-                        </dd>
+
+                        <!-- Removed Coordinates Row -->
                     </dl>
                 </div>
                 <div class="col-md-6">
@@ -226,7 +219,7 @@
                                     <th>Номер перевозки</th>
                                     <th>Откуда</th>
                                     <th>Отправление</th>
-                                    <th>Ожидаемое прибытие</th>
+                                    <th>Расч. прибытие</th> <!-- Keep estimated -->
                                     <th>Статус</th>
                                     <th>Кол-во товаров</th>
                                     <th>Действия</th>
@@ -237,25 +230,40 @@
                                 <tr>
                                     <td><strong>{{ shipment.shipment_number }}</strong></td>
                                     <td>{{ shipment.from_location.name }}</td>
-                                    <td>{{ shipment.departure_time|date:"d.m.Y H:i" }}</td>
-                                    <td>{{ shipment.arrival_time|date:"d.m.Y H:i"|default:"Не указано" }}</td>
+                                    <td>{{ shipment.departure_time|date:"d.m.Y H:i"|default:"—" }}</td>
                                     <td>
-                                        {% if shipment.arrival_time %}
-                                            {% if shipment.arrival_time <= now %}
-                                                <span class="badge bg-success">Прибыла</span>
-                                            {% else %}
-                                                <span class="badge bg-warning">Ожидается</span>
-                                            {% endif %}
+                                        {% if shipment.status in 'in_transit,arrived,unloaded,completed' %}
+                                            {{ shipment.estimated_arrival_time|date:"d.m.Y H:i"|default:"Не рассчитано" }}
                                         {% else %}
-                                            <span class="badge bg-info">В пути</span>
+                                            <span class="text-muted">—</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="badge
+                                            {% if shipment.status == 'completed' %}bg-success
+                                            {% elif shipment.status == 'in_transit' %}bg-primary
+                                            {% elif shipment.status == 'cancelled' %}bg-danger
+                                            {% elif shipment.status == 'arrived' %}bg-info
+                                            {% elif shipment.status == 'unloaded' %}bg-warning
+                                            {% elif shipment.status == 'loading' %}bg-warning text-dark
+                                            {% else %}bg-secondary{% endif %}">
+                                            {{ shipment.get_status_display }}
+                                        </span>
+                                        {% if shipment.arrival_time %}
+                                            <br><small class="text-muted">Прибыла: {{ shipment.arrival_time|date:"d.m.Y H:i" }}</small>
                                         {% endif %}
                                     </td>
                                     <td>{{ shipment.items.count }} шт.</td>
                                     <td>
                                         <div class="btn-group">
                                             <a href="{% url 'shipment_detail' shipment.id %}" class="btn btn-sm btn-primary">Детали</a>
-                                            {% if not shipment.arrival_time %}
-                                                <a href="{% url 'shipment_mark_arrived' shipment.id %}" class="btn btn-sm btn-success">Принять перевозку</a>
+                                            {% if shipment.status == 'arrived' %}
+                                                <a href="{% url 'shipment_unload' shipment.id %}" class="btn btn-sm btn-warning">Разгрузить</a>
+                                            {% elif shipment.status == 'in_transit' %}
+                                                 <form method="post" action="{% url 'shipment_mark_arrived' shipment.id %}" class="d-inline">
+                                                    {% csrf_token %}
+                                                    <button type="submit" class="btn btn-sm btn-success">Прибыла</button>
+                                                </form>
                                             {% endif %}
                                         </div>
                                     </td>
@@ -281,15 +289,15 @@
                             <i class="bi bi-plus-lg"></i> Создать перевозку
                         </a>
                     </div>
-                    
+
                     <div class="table-responsive">
                         <table class="table table-hover">
                             <thead class="table-light">
                                 <tr>
                                     <th>Номер перевозки</th>
                                     <th>Пункт назначения</th>
-                                    <th>Тип назначения</th>
                                     <th>Отправление</th>
+                                    <th>Расч. прибытие</th> <!-- Keep estimated -->
                                     <th>Статус</th>
                                     <th>Кол-во товаров</th>
                                     <th>Действия</th>
@@ -300,33 +308,38 @@
                                 <tr>
                                     <td><strong>{{ shipment.shipment_number }}</strong></td>
                                     <td>{{ shipment.to_location.name }}</td>
+                                    <td>{{ shipment.departure_time|date:"d.m.Y H:i"|default:"—" }}</td>
                                     <td>
-                                        {% if shipment.to_location.location_type == 'warehouse' %}
-                                            <span class="badge bg-primary">Склад</span>
+                                        {% if shipment.status in 'in_transit,arrived,unloaded,completed' %}
+                                            {{ shipment.estimated_arrival_time|date:"d.m.Y H:i"|default:"Не рассчитано" }}
                                         {% else %}
-                                            <span class="badge bg-success">Пункт выдачи</span>
+                                            <span class="text-muted">—</span>
                                         {% endif %}
                                     </td>
-                                    <td>{{ shipment.departure_time|date:"d.m.Y H:i" }}</td>
                                     <td>
-                                        {% if shipment.arrival_time %}
-                                            {% if shipment.arrival_time <= now %}
-                                                <span class="badge bg-success">Прибыла</span>
-                                            {% else %}
-                                                <span class="badge bg-warning">Ожидается</span>
-                                            {% endif %}
-                                        {% else %}
-                                            <span class="badge bg-info">В пути</span>
-                                        {% endif %}
+                                        <span class="badge
+                                            {% if shipment.status == 'completed' %}bg-success
+                                            {% elif shipment.status == 'in_transit' %}bg-primary
+                                            {% elif shipment.status == 'cancelled' %}bg-danger
+                                            {% elif shipment.status == 'arrived' %}bg-info
+                                            {% elif shipment.status == 'unloaded' %}bg-warning
+                                            {% elif shipment.status == 'loading' %}bg-warning text-dark
+                                            {% else %}bg-secondary{% endif %}">
+                                            {{ shipment.get_status_display }}
+                                        </span>
                                     </td>
                                     <td>{{ shipment.items.count }} шт.</td>
                                     <td>
                                         <div class="btn-group">
                                             <a href="{% url 'shipment_detail' shipment.id %}" class="btn btn-sm btn-primary">Детали</a>
-                                            {% if not shipment.items.exists %}
+                                            {% if shipment.status == 'created' or shipment.status == 'loading' %}
                                                 <a href="{% url 'add_items_to_shipment_enhanced' shipment.id %}" class="btn btn-sm btn-warning">
                                                     <i class="bi bi-plus-lg"></i> Добавить товары
                                                 </a>
+                                                <form method="post" action="{% url 'shipment_start_transit' shipment.id %}" class="d-inline">
+                                                    {% csrf_token %}
+                                                    <button type="submit" class="btn btn-sm btn-success">Отправить</button>
+                                                </form>
                                             {% endif %}
                                         </div>
                                     </td>

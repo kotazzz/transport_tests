@@ -86,8 +86,14 @@
                                     <td>{{ shipment.shipment_number }}</td>
                                     <td>{{ shipment.from_location.name }}</td>
                                     <td>{{ shipment.to_location.name }}</td>
-                                    <td>{{ shipment.departure_time|date:"d.m.Y H:i" }}</td>
-                                    <td>{{ shipment.estimated_arrival_time|date:"d.m.Y H:i"|default:"—" }}</td>
+                                    <td>{{ shipment.departure_time|date:"d.m.Y H:i"|default:"—" }}</td>
+                                    <td>
+                                        {% if shipment.status in 'in_transit,arrived,unloaded,completed' %}
+                                            {{ shipment.estimated_arrival_time|date:"d.m.Y H:i"|default:"Не рассчитано" }}
+                                        {% else %}
+                                            <span class="text-muted">—</span>
+                                        {% endif %}
+                                    </td>
                                     <td>{{ shipment.arrival_time|date:"d.m.Y H:i"|default:"—" }}</td>
                                     <td>
                                         <span class="badge 

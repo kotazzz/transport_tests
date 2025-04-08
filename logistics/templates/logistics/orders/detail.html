@@ -84,7 +84,7 @@
             <div class="delivery-timeline mt-4">
                 <div class="row position-relative">
                     <div class="col-12 col-md-2 text-center">
-                        <div class="delivery-step {% if order.status != 'pending' %}completed{% elif items %}active{% endif %}">
+                        <div class="delivery-step {% if order.status != 'pending' or items %}completed{% endif %}">
                             <div class="step-icon">
                                 <i class="bi bi-box"></i>
                             </div>
@@ -93,7 +93,7 @@
                         </div>
                     </div>
                     <div class="col-12 col-md-3 text-center">
-                        <div class="delivery-step {% if related_shipments %}{% if order.status != 'pending' %}completed{% else %}active{% endif %}{% endif %}">
+                        <div class="delivery-step {% if related_shipments %}{% if order.status == 'in_transit' or order.status == 'delivered' or order.status == 'returned' %}completed{% else %}active{% endif %}{% endif %}">
                             <div class="step-icon">
                                 <i class="bi bi-arrow-right-circle"></i>
                             </div>
@@ -102,7 +102,7 @@
                         </div>
                     </div>
                     <div class="col-12 col-md-2 text-center">
-                        <div class="delivery-step {% if order.status == 'in_transit' %}active{% elif order.status == 'delivered' or order.status == 'returned' %}completed{% endif %}">
+                        <div class="delivery-step {% if order.status == 'in_transit' %}active{% elif order.status == 'delivered' or order.status == 'returned' or items.0.status == 'at_warehouse' %}completed{% endif %}">
                             <div class="step-icon">
                                 <i class="bi bi-truck"></i>
                             </div>
@@ -128,7 +128,7 @@
                             <small class="text-muted">Получено клиентом</small>
                         </div>
                     </div>
-                    
+
                     <!-- Прогресс-линия, соединяющая шаги -->
                     <div class="progress-line"></div>
                 </div>

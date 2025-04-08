@@ -97,6 +97,11 @@ urlpatterns = [
         name="shipment_unload",
     ),
     path(
+        "shipments/<int:shipment_id>/finish-unloading/",
+        views.shipment_finish_unloading,
+        name="shipment_finish_unloading",
+    ),
+    path(
         "shipments/<int:shipment_id>/complete/",
         views.shipment_complete,
         name="shipment_complete",

@@ -11,9 +11,7 @@ from .forms import (
     OrderForm,
     ItemForm,
     ShipmentForm,
-    ItemSelectionForm,
 )
-import uuid
 
 
 def dashboard(request):
@@ -110,17 +108,21 @@ def pickup_detail(request, pickup_id):
     # Get orders for this pickup point
     pickup_orders = Order.objects.filter(destination=pickup)
 
-    # Get incoming shipments
-    incoming_shipments = Shipment.objects.filter(to_location=pickup)
+    # Get incoming shipments that are actually expected (in transit or arrived)
+    incoming_shipments = Shipment.objects.filter(
+        to_location=pickup,
+        status__in=['in_transit', 'arrived'] # Filter by relevant statuses
+    ).order_by('estimated_arrival_time', 'departure_time')
 
-    # Get items ready for pickup
+    # Get items ready for pickup (at this pickup point)
     ready_items = Item.objects.filter(current_location=pickup, status="at_warehouse")
 
     context = {
         "pickup": pickup,
         "pickup_orders": pickup_orders,
-        "incoming_shipments": incoming_shipments,
+        "incoming_shipments": incoming_shipments, # Use the filtered list
         "ready_items": ready_items,
+        "now": timezone.now(), # Pass 'now' for comparison if needed
     }
     return render(request, "logistics/pickup/detail.html", context)
 
@@ -224,8 +226,7 @@ def create_shipments_for_order(request, order_id):
 
     if order.status != "pending":
         messages.error(
-            request,
-            'Можно создавать перевозки только для заказов в статусе "Ожидает отправки"',
+            request, "Нельзя создать перевозки для заказа, который не в статусе 'Ожидает отправки'."
         )
         return redirect("order_detail", order_id=order.id)
 
@@ -235,11 +236,25 @@ def create_shipments_for_order(request, order_id):
     )
 
     if not items_to_ship:
-        messages.warning(request, "Нет товаров, требующих отправки")
+        messages.warning(request, "В заказе нет товаров для отправки.")
         return redirect("order_detail", order_id=order.id)
 
     if not order.destination:
-        messages.error(request, "У заказа не указан пункт назначения")
+        messages.warning(request, "Не указан пункт назначения для заказа.")
+        return redirect("order_detail", order_id=order.id)
+
+    # Check for an active route
+    try:
+        Route.objects.get(
+            from_location__location_type="warehouse",  # Assuming warehouse
+            to_location=order.destination,
+            active=True,
+        )
+    except Route.DoesNotExist:
+        messages.error(
+            request,
+            f"Не найден активный маршрут из склада в {order.destination.name}. Невозможно создать перевозки.",
+        )
         return redirect("order_detail", order_id=order.id)
 
     # Use the routing engine to create optimal shipments
@@ -249,13 +264,12 @@ def create_shipments_for_order(request, order_id):
 
     if created_shipments:
         messages.success(
-            request,
-            f"Успешно создано {len(created_shipments)} перевозок для заказа #{order.id}",
+            request, f"Создано {len(created_shipments)} перевозок для заказа #{order.id}."
         )
+        # Redirect to the detail page of the first created shipment
+        return redirect("shipment_detail", shipment_id=created_shipments[0].id)
     else:
-        messages.warning(
-            request, "Не удалось создать перевозки. Проверьте наличие маршрутов."
-        )
+        messages.error(request, "Не удалось создать перевозки для заказа.")
 
     return redirect("order_detail", order_id=order.id)
 
@@ -267,34 +281,17 @@ def mark_shipment_arrived(request, shipment_id):
     if shipment.arrival_time:
         messages.warning(request, "Перевозка уже отмечена как прибывшая")
     else:
-        # Set arrival time
-        shipment.arrival_time = timezone.now()
-        shipment.save()
+        # Set arrival time and update status via model method
+        if shipment.mark_as_arrived():
+            messages.success(
+                request,
+                f"Перевозка #{shipment.shipment_number} отмечена как прибывшая в {shipment.to_location.name}. Требуется разгрузка.",
+            )
+        else:
+            messages.error(request, f"Не удалось отметить прибытие для перевозки #{shipment.shipment_number}. Проверьте статус.")
 
-        # Update item statuses based on destination type
-        dest_type = shipment.to_location.location_type
-
-        for item in shipment.items.all():
-            if dest_type == "pickup":
-                # At pickup point, items are ready for customer pickup
-                item.update_status("at_warehouse", shipment.to_location)
-
-                # Create notification for pickup point
-                # This could be extended to real notifications in future
-                messages.info(
-                    request,
-                    f'Товар "{item.description}" готов к выдаче в {shipment.to_location.name}',
-                )
-            else:
-                # At warehouse, items are stored for future shipment or processing
-                item.update_status("at_warehouse", shipment.to_location)
-
-        messages.success(
-            request,
-            f"Перевозка {shipment.shipment_number} отмечена как прибывшая в {shipment.to_location.name}",
-        )
-
-    return redirect("shipment_mark_arrived", shipment_id=shipment.id)
+    # Redirect to shipment detail to see the next steps
+    return redirect("shipment_detail", shipment_id=shipment.id)
 
 
 def route_detail(request, route_id):
@@ -324,7 +321,7 @@ def route_create(request):
         form = RouteForm(request.POST)
         if form.is_valid():
             route = form.save()
-            messages.success(request, f"Маршрут успешно создан")
+            messages.success(request, "Маршрут успешно создан")
             return redirect("route_detail", route_id=route.id)
     else:
         form = RouteForm()
@@ -343,7 +340,7 @@ def route_edit(request, route_id):
         form = RouteForm(request.POST, instance=route)
         if form.is_valid():
             form.save()
-            messages.success(request, f"Маршрут успешно обновлен")
+            messages.success(request, "Маршрут успешно обновлен")
             return redirect("route_detail", route_id=route.id)
     else:
         form = RouteForm(instance=route)
@@ -422,7 +419,7 @@ def seller_edit(request, seller_id):
         form = SellerForm(request.POST, instance=seller)
         if form.is_valid():
             form.save()
-            messages.success(request, f"Информация о продавце успешно обновлена")
+            messages.success(request, "Информация о продавце успешно обновлена")
             return redirect("seller_detail", seller_id=seller.id)
     else:
         form = SellerForm(instance=seller)
@@ -485,7 +482,7 @@ def location_edit(request, location_id):
         form = LocationForm(request.POST, instance=location)
         if form.is_valid():
             form.save()
-            messages.success(request, f"Информация о локации успешно обновлена")
+            messages.success(request, "Информация о локации успешно обновлена")
 
             if location.location_type == "warehouse":
                 return redirect("warehouse_detail", warehouse_id=location.id)
@@ -558,7 +555,7 @@ def order_edit(request, order_id):
         form = OrderForm(request.POST, instance=order)
         if form.is_valid():
             form.save()
-            messages.success(request, f"Информация о заказе успешно обновлена")
+            messages.success(request, "Информация о заказе успешно обновлена")
             return redirect("order_detail", order_id=order.id)
     else:
         form = OrderForm(instance=order)
@@ -609,7 +606,7 @@ def item_edit(request, item_id):
             # Update order status
             order.update_status()
 
-            messages.success(request, f"Информация о товаре успешно обновлена")
+            messages.success(request, "Информация о товаре успешно обновлена")
             return redirect("order_detail", order_id=order.id)
     else:
         form = ItemForm(instance=item)
@@ -651,27 +648,23 @@ def create_shipment_manual(request):
     if request.method == "POST":
         form = ShipmentForm(request.POST)
         if form.is_valid():
-            shipment = form.save()
+            shipment = form.save(commit=False)
+            # Status is 'created' by default
+            shipment.save()
             messages.success(
-                request, f"Перевозка #{shipment.shipment_number} успешно создана"
+                request,
+                f"Перевозка #{shipment.shipment_number} успешно создана. Теперь можно добавить товары.",
             )
-            return redirect("shipment_detail", shipment_id=shipment.id)
+            return redirect("add_items_to_shipment_enhanced", shipment_id=shipment.id)
     else:
-        # Generate a unique shipment number
-        shipment_number = f"SH-{uuid.uuid4().hex[:8].upper()}"
-        form = ShipmentForm(
-            initial={
-                "shipment_number": shipment_number,
-                "departure_time": timezone.now(),
-            }
-        )
+        form = ShipmentForm()
 
     context = {
         "form": form,
         "page_title": "Создание перевозки",
     }
     return render(request, "logistics/shipments/form.html", context)
-
+ 
 
 def add_items_to_shipment(request, shipment_id):
     """
@@ -832,39 +825,17 @@ def create_shipment_from_warehouse(request, warehouse_id):
         form = ShipmentForm(request.POST)
         if form.is_valid():
             shipment = form.save(commit=False)
-
-            # Расчет ожидаемого времени прибытия
-            from_loc = form.cleaned_data["from_location"]
-            to_loc = form.cleaned_data["to_location"]
-
-            try:
-                route = Route.objects.get(
-                    from_location=from_loc, to_location=to_loc, active=True
-                )
-                travel_time = route.travel_time
-            except Route.DoesNotExist:
-                travel_time = timezone.timedelta(
-                    hours=1
-                )  # По умолчанию 1 час если нет маршрута
-
-            # Устанавливаем время прибытия
-            shipment.arrival_time = shipment.departure_time + travel_time
+            # Ensure the from_location is set correctly even if the form was manipulated
+            shipment.from_location = warehouse
             shipment.save()
-
             messages.success(
-                request, f"Перевозка #{shipment.shipment_number} успешно создана"
+                request,
+                f"Перевозка #{shipment.shipment_number} из {warehouse.name} успешно создана. Добавьте товары.",
             )
             return redirect("add_items_to_shipment_enhanced", shipment_id=shipment.id)
     else:
-        # Генерация уникального номера перевозки
-        shipment_number = f"SH-{uuid.uuid4().hex[:8].upper()}"
-        form = ShipmentForm(
-            initial={
-                "shipment_number": shipment_number,
-                "from_location": warehouse,
-                "departure_time": timezone.now(),
-            }
-        )
+        # Pre-fill the form with the warehouse as the starting location
+        form = ShipmentForm(initial={"from_location": warehouse})
 
     context = {
         "form": form,
@@ -1030,29 +1001,51 @@ def shipment_loading(request, shipment_id):
 
 def shipment_start_transit(request, shipment_id):
     """
-    Start the shipment transit - mark items as in_transit and update shipment status.
+    Start the shipment transit - mark items as in_transit, set departure time,
+    calculate estimated arrival based on route, and update shipment status.
     """
     shipment = get_object_or_404(Shipment, pk=shipment_id)
 
-    # Check if the shipment is in loading status and has items
-    if shipment.status != "loading":
+    # Check if the shipment is in loading or created status
+    if shipment.status not in ["loading", "created"]:
         messages.error(
-            request, f"Только перевозки в статусе загрузки могут быть отправлены в путь"
+            request,
+            f"Нельзя отправить перевозку #{shipment.shipment_number}, так как она не в статусе 'Создана' или 'Загрузка'.",
         )
         return redirect("shipment_detail", shipment_id=shipment.id)
 
     if not shipment.items.exists():
-        messages.error(
-            request, "Невозможно отправить пустую перевозку. Добавьте товары."
+        messages.warning(
+            request,
+            f"Нельзя отправить пустую перевозку #{shipment.shipment_number}. Добавьте товары.",
         )
         return redirect("add_items_to_shipment_enhanced", shipment_id=shipment.id)
 
-    # Mark shipment as in transit
-    shipment.mark_as_in_transit()
+    # Check for an active route
+    try:
+        route = Route.objects.get(
+            from_location=shipment.from_location,
+            to_location=shipment.to_location,
+            active=True,
+        )
+    except Route.DoesNotExist:
+        messages.error(
+            request,
+            f"Не найден активный маршрут из {shipment.from_location.name} в {shipment.to_location.name}. Невозможно отправить перевозку.",
+        )
+        return redirect("shipment_detail", shipment_id=shipment.id)
 
-    messages.success(
-        request, f"Перевозка #{shipment.shipment_number} отправлена в путь"
-    )
+    # Mark shipment as in transit using the model method
+    if shipment.mark_as_in_transit():
+        messages.success(
+            request, f"Перевозка #{shipment.shipment_number} отправлена в путь."
+        )
+    else:
+        # This case should ideally not happen due to checks above, but good to have
+        messages.error(
+            request, f"Не удалось отправить перевозку #{shipment.shipment_number}."
+        )
+
     return redirect("shipment_detail", shipment_id=shipment.id)
 
 
@@ -1065,7 +1058,7 @@ def shipment_mark_arrived(request, shipment_id):
 
     if shipment.status != "in_transit":
         messages.warning(
-            request, f"Только перевозки в пути могут быть отмечены как прибывшие"
+            request, "Только перевозки в пути могут быть отмечены как прибывшие"
         )
         return redirect("shipment_detail", shipment_id=shipment.id)
 
@@ -1082,6 +1075,7 @@ def shipment_mark_arrived(request, shipment_id):
 def shipment_unload(request, shipment_id):
     """
     Unload the shipment - move items from shipment to destination warehouse.
+    Allow marking items as lost during unloading.
     """
     shipment = get_object_or_404(Shipment, pk=shipment_id)
 
@@ -1089,16 +1083,34 @@ def shipment_unload(request, shipment_id):
         messages.warning(request, "Только прибывшие перевозки могут быть разгружены")
         return redirect("shipment_detail", shipment_id=shipment.id)
 
-    # Unload all items - updates their status and location
-    if shipment.unload_items():
+    if request.method == "POST":
+        # Get list of lost items from form
+        lost_item_ids = request.POST.getlist("lost_items")
+        
+        # Update status for all items
+        for item in shipment.items.all():
+            if str(item.id) in lost_item_ids:
+                item.update_status("lost")
+                messages.warning(request, f'Товар "{item.description}" отмечен как утерянный')
+            else:
+                item.update_status("at_warehouse", shipment.to_location)
+        
+        # Mark shipment as unloaded
+        shipment.status = "unloaded"
+        shipment.save()
+
         messages.success(
             request,
             f"Перевозка #{shipment.shipment_number} разгружена. Товары перемещены на склад {shipment.to_location.name}",
         )
-    else:
-        messages.error(request, "Не удалось разгрузить перевозку")
+        return redirect("shipment_detail", shipment_id=shipment.id)
 
-    return redirect("shipment_detail", shipment_id=shipment.id)
+    # For GET request, show the unloading form
+    context = {
+        "shipment": shipment,
+        "items": shipment.items.all(),
+    }
+    return render(request, "logistics/shipments/unload.html", context)
 
 
 def shipment_complete(request, shipment_id):
@@ -1220,3 +1232,21 @@ def order_delete(request, order_id):
 
     messages.success(request, f"Заказ #{order_id_for_message} успешно удален")
     return redirect("seller_detail", seller_id=seller.id)
+
+
+def shipment_finish_unloading(request, shipment_id):
+    """
+    Marks the shipment as fully unloaded and completes the process.
+    """
+    shipment = get_object_or_404(Shipment, pk=shipment_id)
+
+    if shipment.status != 'unloading':
+        messages.error(request, "Нельзя завершить разгрузку, если она не в процессе.")
+        return redirect('shipment_detail', shipment_id=shipment.id)
+
+    if shipment.complete_shipment():
+        messages.success(request, "Перевозка успешно завершена.")
+    else:
+        messages.error(request, "Не удалось завершить перевозку. Убедитесь, что все товары разгружены.")
+
+    return redirect('shipment_detail', shipment_id=shipment.id)

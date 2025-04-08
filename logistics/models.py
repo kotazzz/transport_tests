@@ -1,7 +1,8 @@
 from django.db import models
 from django.utils import timezone
-from django.db.models import Count
+from django.db.models import Count, F, ExpressionWrapper, fields
 from django.core.exceptions import ValidationError
+from datetime import timedelta
 
 
 class Seller(models.Model):
@@ -45,8 +46,6 @@ class Location(models.Model):
         "Тип локации", max_length=20, choices=LOCATION_TYPE
     )
     address = models.CharField("Адрес", max_length=200)
-    latitude = models.FloatField("Широта", blank=True, null=True)
-    longitude = models.FloatField("Долгота", blank=True, null=True)
 
     def __str__(self):
         return f"{self.name} ({self.get_location_type_display()})"
@@ -172,6 +171,10 @@ class Item(models.Model):
 
         if location:
             self.current_location = location
+        elif new_status == 'in_transit':
+            pass
+        elif new_status == 'lost':
+            pass
 
         self.save()
 
@@ -193,6 +196,7 @@ class Shipment(models.Model):
         ("loading", "Загрузка"),
         ("in_transit", "В пути"),
         ("arrived", "Прибыла"),
+        ("unloading", "Разгрузка"),
         ("unloaded", "Разгружена"),
         ("completed", "Завершена"),
         ("cancelled", "Отменена"),
@@ -205,7 +209,7 @@ class Shipment(models.Model):
     status = models.CharField(
         "Статус", max_length=20, choices=STATUS_CHOICES, default="created"
     )
-    departure_time = models.DateTimeField("Время отправления")
+    departure_time = models.DateTimeField("Время отправления", blank=True, null=True)
     estimated_arrival_time = models.DateTimeField(
         "Расчетное время прибытия", blank=True, null=True
     )
@@ -225,7 +229,7 @@ class Shipment(models.Model):
         verbose_name="Куда",
     )
     items = models.ManyToManyField(
-        Item, related_name="shipments", verbose_name="Товары"
+        Item, related_name="shipments", verbose_name="Товары", blank=True
     )
 
     def __str__(self):
@@ -233,51 +237,105 @@ class Shipment(models.Model):
 
     def mark_as_in_transit(self):
         """
-        Отмечает перевозку как отправленную в путь
+        Отмечает перевозку как отправленную в путь, устанавливает время отправления
+        и рассчитывает ожидаемое время прибытия на основе активного маршрута.
         """
-        if self.status in ["created", "loading"]:
+        if self.status in ["loading", "created"]: # Allow starting transit from created or loading
             self.status = "in_transit"
+            self.departure_time = timezone.now()
+
+            # Calculate estimated arrival time based on route
+            try:
+                route = Route.objects.get(
+                    from_location=self.from_location,
+                    to_location=self.to_location,
+                    active=True,
+                )
+                if route.travel_time:
+                    self.estimated_arrival_time = self.departure_time + route.travel_time
+                else:
+                    self.estimated_arrival_time = None # No travel time defined
+            except Route.DoesNotExist:
+                self.estimated_arrival_time = None # No active route found
+
             self.save()
 
-            # Обновить статусы товаров
+            # Update item statuses
             for item in self.items.all():
-                item.update_status("in_transit", self.from_location)
+                item.update_status("in_transit", location=item.current_location) # Keep current location until arrival
+            return True
+        return False
 
     def mark_as_arrived(self):
         """
-        Отмечает перевозку как прибывшую, но еще не разгруженную
+        Отмечает перевозку как прибывшую, устанавливает фактическое время прибытия.
         """
         if self.status == "in_transit":
             self.status = "arrived"
             self.arrival_time = timezone.now()
             self.save()
-
-            # На этом этапе товары еще не перемещены, они всё ещё в перевозке
-
-    def unload_items(self):
-        """
-        Разгрузка товаров на складе назначения
-        """
-        if self.status == "arrived":
-            self.status = "unloaded"
-            self.save()
-
-            # Обновить статусы товаров только после разгрузки
-            for item in self.items.all():
-                item.update_status("at_warehouse", self.to_location)
-
             return True
         return False
 
+    def start_unloading(self):
+        """Marks the shipment as being unloaded."""
+        if self.status == "arrived":
+            self.status = "unloading"
+            self.save()
+            return True
+        return False
+
+    def process_unloaded_item(self, item, status):
+        """
+        Processes a single item during unloading.
+        Updates item status and location.
+        """
+        if self.status == "unloading" and item in self.items.all():
+            if status == "at_warehouse":
+                item.update_status("at_warehouse", location=self.to_location)
+            elif status == "lost":
+                item.update_status("lost", location=self.to_location)
+            else:
+                return False
+            return True
+        return False
+
+    def check_and_finish_unloading(self):
+        """Checks if all items are processed (at_warehouse or lost) and marks shipment as unloaded."""
+        if self.status == "unloading":
+            processed_items_count = self.items.filter(
+                Q(status='at_warehouse', current_location=self.to_location) | Q(status='lost')
+            ).count()
+
+            if processed_items_count == self.items.count():
+                self.status = "unloaded"
+                self.save()
+                return True
+        return False
+
+
     def complete_shipment(self):
         """
-        Завершает перевозку после подтверждения получения всех товаров
+        Завершает перевозку после подтверждения разгрузки всех товаров.
         """
         if self.status == "unloaded":
             self.status = "completed"
             self.save()
             return True
         return False
+
+    def cancel_shipment(self):
+        """Cancels the shipment and attempts to return items."""
+        if self.status not in ['completed', 'cancelled']:
+            previous_status = self.status
+            self.status = 'cancelled'
+            self.save()
+            for item in self.items.all():
+                if item.status == 'in_transit' or previous_status in ['loading', 'created']:
+                    item.update_status('at_warehouse', location=self.from_location)
+            return True
+        return False
+
 
     class Meta:
         verbose_name = "Перевозка"
@@ -301,8 +359,7 @@ class Route(models.Model):
         on_delete=models.CASCADE,
         verbose_name="Куда",
     )
-    cost = models.DecimalField("Стоимость", max_digits=10, decimal_places=2)
-    travel_time = models.DurationField("Время в пути")
+    travel_time = models.DurationField("Время в пути", help_text="Пример: 1 02:30:00 = 1 день, 2 часа, 30 минут")
     active = models.BooleanField("Активен", default=True)
 
     def __str__(self):

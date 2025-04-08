@@ -55,11 +55,17 @@
                             </tr>
                             <tr>
                                 <th>Дата отправления:</th>
-                                <td>{{ shipment.departure_time|date:"d.m.Y H:i" }}</td>
+                                <td>{{ shipment.departure_time|date:"d.m.Y H:i"|default:"—" }}</td>
                             </tr>
                             <tr>
                                 <th>Расчетное время прибытия:</th>
-                                <td>{{ shipment.estimated_arrival_time|date:"d.m.Y H:i"|default:"Не указано" }}</td>
+                                <td>
+                                    {% if shipment.status in 'in_transit,arrived,unloaded,completed' %}
+                                        {{ shipment.estimated_arrival_time|date:"d.m.Y H:i"|default:"Не рассчитано" }}
+                                    {% else %}
+                                        <span class="text-muted">Будет рассчитано при отправке</span>
+                                    {% endif %}
+                                </td>
                             </tr>
                             <tr>
                                 <th>Фактическое прибытие:</th>
@@ -114,8 +120,17 @@
                             
                         {% elif shipment.status == 'arrived' %}
                             <!-- Для прибывшей перевозки - разгрузка -->
-                            <button type="button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#unloadModal">
-                                Разгрузить товары
+                            <a href="{% url 'shipment_unload' shipment.id %}" class="btn btn-warning">
+                                <i class="bi bi-box-arrow-down"></i> Разгрузить товары
+                            </a>
+
+                        {% elif shipment.status == 'unloading' %}
+                            <!-- Для разгружаемой перевозки - перейти к разгрузке или завершить -->
+                             <a href="{% url 'shipment_unload' shipment.id %}" class="btn btn-warning">
+                                <i class="bi bi-list-task"></i> Продолжить разгрузку
+                            </a>
+                             <button type="button" class="btn btn-primary ms-2" data-bs-toggle="modal" data-bs-target="#finishUnloadingModal">
+                                <i class="bi bi-flag-fill"></i> Завершить разгрузку
                             </button>
                             
                         {% elif shipment.status == 'unloaded' %}
@@ -145,6 +160,8 @@
                                 <div class="progress-bar bg-primary" role="progressbar" style="width: 50%;" aria-valuenow="50" aria-valuemin="0" aria-valuemax="100">50%</div>
                             {% elif shipment.status == 'arrived' %}
                                 <div class="progress-bar bg-info" role="progressbar" style="width: 70%;" aria-valuenow="70" aria-valuemin="0" aria-valuemax="100">70%</div>
+                            {% elif shipment.status == 'unloading' %}
+                                <div class="progress-bar bg-warning" role="progressbar" style="width: 80%;" aria-valuenow="80" aria-valuemin="0" aria-valuemax="100">80%</div>
                             {% elif shipment.status == 'unloaded' %}
                                 <div class="progress-bar bg-warning" role="progressbar" style="width: 90%;" aria-valuenow="90" aria-valuemin="0" aria-valuemax="100">90%</div>
                             {% elif shipment.status == 'completed' %}
@@ -236,8 +253,8 @@
                             <i class="bi bi-geo-alt {% if shipment.status in 'arrived,unloaded,completed' %}text-success{% else %}text-secondary{% endif %}"></i>
                             Прибыла: {% if shipment.arrival_time %}{{ shipment.arrival_time|date:"d.m.Y H:i" }}{% else %}Ожидается{% endif %}
                         </li>
-                        <li class="list-group-item {% if shipment.status in 'unloaded,completed' %}list-group-item-success{% endif %}">
-                            <i class="bi bi-box-arrow-down {% if shipment.status in 'unloaded,completed' %}text-success{% else %}text-secondary{% endif %}"></i>
+                        <li class="list-group-item {% if shipment.status in 'unloading,unloaded,completed' %}list-group-item-success{% endif %}">
+                            <i class="bi bi-box-arrow-down {% if shipment.status in 'unloading,unloaded,completed' %}text-success{% else %}text-secondary{% endif %}"></i>
                             Разгрузка товаров
                         </li>
                         <li class="list-group-item {% if shipment.status == 'completed' %}list-group-item-success{% endif %}">
@@ -328,23 +345,24 @@
     </div>
 </div>
 
-<!-- Модальное окно для разгрузки товаров -->
-<div class="modal fade" id="unloadModal" tabindex="-1" aria-labelledby="unloadModalLabel" aria-hidden="true">
+<!-- Модальное окно для завершения разгрузки -->
+<div class="modal fade" id="finishUnloadingModal" tabindex="-1" aria-labelledby="finishUnloadingModalLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="unloadModalLabel">Разгрузить товары</h5>
+                <h5 class="modal-title" id="finishUnloadingModalLabel">Завершить разгрузку</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <p>Вы собираетесь разгрузить товары из перевозки #{{ shipment.shipment_number }}.</p>
-                <p>Все товары будут перемещены на склад {{ shipment.to_location.name }} и изменят свой статус на "На складе".</p>
+                <p>Вы собираетесь завершить разгрузку перевозки #{{ shipment.shipment_number }}.</p>
+                <p>Убедитесь, что все товары были отмечены как принятые или утерянные.</p>
+                <p>Статус перевозки изменится на "Разгружена".</p>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
-                <form method="post" action="{% url 'shipment_unload' shipment.id %}">
+                <form method="post" action="{% url 'shipment_finish_unloading' shipment.id %}">
                     {% csrf_token %}
-                    <button type="submit" class="btn btn-warning">Разгрузить товары</button>
+                    <button type="submit" class="btn btn-primary">Завершить разгрузку</button>
                 </form>
             </div>
         </div>

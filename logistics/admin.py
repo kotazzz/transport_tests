@@ -59,5 +59,15 @@ class ShipmentAdmin(admin.ModelAdmin):
 
 @admin.register(Route)
 class RouteAdmin(admin.ModelAdmin):
-    list_display = ("from_location", "to_location", "cost", "travel_time", "active")
-    list_filter = ("active", "from_location", "to_location")
+    list_display = ("from_location", "to_location", "travel_time", "active")
+    list_filter = ("from_location", "to_location", "active")
+    search_fields = ("from_location__name", "to_location__name")
+    actions = ["make_active", "make_inactive"]
+
+    @admin.action(description="Mark selected routes as active")
+    def make_active(self, request, queryset):
+        queryset.update(active=True)
+
+    @admin.action(description="Mark selected routes as inactive")
+    def make_inactive(self, request, queryset):
+        queryset.update(active=False)
