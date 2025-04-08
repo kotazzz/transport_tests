@@ -4,25 +4,41 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('logistics', '0002_alter_item_options_alter_location_options_and_more'),
+        ("logistics", "0002_alter_item_options_alter_location_options_and_more"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='shipment',
-            name='estimated_arrival_time',
-            field=models.DateTimeField(blank=True, null=True, verbose_name='Расчетное время прибытия'),
+            model_name="shipment",
+            name="estimated_arrival_time",
+            field=models.DateTimeField(
+                blank=True, null=True, verbose_name="Расчетное время прибытия"
+            ),
         ),
         migrations.AddField(
-            model_name='shipment',
-            name='status',
-            field=models.CharField(choices=[('created', 'Создана'), ('loading', 'Загрузка'), ('in_transit', 'В пути'), ('arrived', 'Прибыла'), ('unloaded', 'Разгружена'), ('completed', 'Завершена'), ('cancelled', 'Отменена')], default='created', max_length=20, verbose_name='Статус'),
+            model_name="shipment",
+            name="status",
+            field=models.CharField(
+                choices=[
+                    ("created", "Создана"),
+                    ("loading", "Загрузка"),
+                    ("in_transit", "В пути"),
+                    ("arrived", "Прибыла"),
+                    ("unloaded", "Разгружена"),
+                    ("completed", "Завершена"),
+                    ("cancelled", "Отменена"),
+                ],
+                default="created",
+                max_length=20,
+                verbose_name="Статус",
+            ),
         ),
         migrations.AlterField(
-            model_name='shipment',
-            name='arrival_time',
-            field=models.DateTimeField(blank=True, null=True, verbose_name='Фактическое время прибытия'),
+            model_name="shipment",
+            name="arrival_time",
+            field=models.DateTimeField(
+                blank=True, null=True, verbose_name="Фактическое время прибытия"
+            ),
         ),
     ]

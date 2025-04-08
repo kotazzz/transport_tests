@@ -6,78 +6,223 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     initial = True
 
-    dependencies = [
-    ]
+    dependencies = []
 
     operations = [
         migrations.CreateModel(
-            name='Location',
+            name="Location",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(max_length=100)),
-                ('location_type', models.CharField(choices=[('warehouse', 'Склад'), ('pickup', 'ПВЗ')], max_length=20)),
-                ('address', models.CharField(max_length=200)),
-                ('latitude', models.FloatField(blank=True, null=True)),
-                ('longitude', models.FloatField(blank=True, null=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("name", models.CharField(max_length=100)),
+                (
+                    "location_type",
+                    models.CharField(
+                        choices=[("warehouse", "Склад"), ("pickup", "ПВЗ")],
+                        max_length=20,
+                    ),
+                ),
+                ("address", models.CharField(max_length=200)),
+                ("latitude", models.FloatField(blank=True, null=True)),
+                ("longitude", models.FloatField(blank=True, null=True)),
             ],
         ),
         migrations.CreateModel(
-            name='Seller',
+            name="Seller",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(max_length=100)),
-                ('contact', models.CharField(blank=True, max_length=200, null=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("name", models.CharField(max_length=100)),
+                ("contact", models.CharField(blank=True, max_length=200, null=True)),
             ],
         ),
         migrations.CreateModel(
-            name='Order',
+            name="Order",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('status', models.CharField(choices=[('pending', 'Ожидает отправки'), ('in_transit', 'В пути'), ('delivered', 'Доставлен'), ('returned', 'Возврат')], default='pending', max_length=20)),
-                ('destination', models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='destination_orders', to='logistics.location')),
-                ('seller', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='logistics.seller')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[
+                            ("pending", "Ожидает отправки"),
+                            ("in_transit", "В пути"),
+                            ("delivered", "Доставлен"),
+                            ("returned", "Возврат"),
+                        ],
+                        default="pending",
+                        max_length=20,
+                    ),
+                ),
+                (
+                    "destination",
+                    models.ForeignKey(
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="destination_orders",
+                        to="logistics.location",
+                    ),
+                ),
+                (
+                    "seller",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        to="logistics.seller",
+                    ),
+                ),
             ],
         ),
         migrations.CreateModel(
-            name='Item',
+            name="Item",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('description', models.CharField(max_length=200)),
-                ('quantity', models.PositiveIntegerField(default=1)),
-                ('status', models.CharField(choices=[('created', 'Создан'), ('at_warehouse', 'На складе'), ('in_transit', 'В перевозке'), ('delivered', 'Доставлен'), ('returned', 'Возврат')], default='created', max_length=20)),
-                ('current_location', models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='stored_items', to='logistics.location')),
-                ('order', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='items', to='logistics.order')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("description", models.CharField(max_length=200)),
+                ("quantity", models.PositiveIntegerField(default=1)),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[
+                            ("created", "Создан"),
+                            ("at_warehouse", "На складе"),
+                            ("in_transit", "В перевозке"),
+                            ("delivered", "Доставлен"),
+                            ("returned", "Возврат"),
+                        ],
+                        default="created",
+                        max_length=20,
+                    ),
+                ),
+                (
+                    "current_location",
+                    models.ForeignKey(
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="stored_items",
+                        to="logistics.location",
+                    ),
+                ),
+                (
+                    "order",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="items",
+                        to="logistics.order",
+                    ),
+                ),
             ],
         ),
         migrations.CreateModel(
-            name='Shipment',
+            name="Shipment",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('shipment_number', models.CharField(max_length=50, unique=True)),
-                ('vehicle_info', models.CharField(blank=True, max_length=100, null=True)),
-                ('departure_time', models.DateTimeField()),
-                ('arrival_time', models.DateTimeField(blank=True, null=True)),
-                ('from_location', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='departing_shipments', to='logistics.location')),
-                ('items', models.ManyToManyField(related_name='shipments', to='logistics.item')),
-                ('to_location', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='arriving_shipments', to='logistics.location')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("shipment_number", models.CharField(max_length=50, unique=True)),
+                (
+                    "vehicle_info",
+                    models.CharField(blank=True, max_length=100, null=True),
+                ),
+                ("departure_time", models.DateTimeField()),
+                ("arrival_time", models.DateTimeField(blank=True, null=True)),
+                (
+                    "from_location",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="departing_shipments",
+                        to="logistics.location",
+                    ),
+                ),
+                (
+                    "items",
+                    models.ManyToManyField(
+                        related_name="shipments", to="logistics.item"
+                    ),
+                ),
+                (
+                    "to_location",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="arriving_shipments",
+                        to="logistics.location",
+                    ),
+                ),
             ],
         ),
         migrations.CreateModel(
-            name='Route',
+            name="Route",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('cost', models.DecimalField(decimal_places=2, max_digits=8)),
-                ('travel_time', models.DurationField(default=datetime.timedelta(seconds=3600))),
-                ('active', models.BooleanField(default=True)),
-                ('from_location', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='routes_from', to='logistics.location')),
-                ('to_location', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='routes_to', to='logistics.location')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("cost", models.DecimalField(decimal_places=2, max_digits=8)),
+                (
+                    "travel_time",
+                    models.DurationField(default=datetime.timedelta(seconds=3600)),
+                ),
+                ("active", models.BooleanField(default=True)),
+                (
+                    "from_location",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="routes_from",
+                        to="logistics.location",
+                    ),
+                ),
+                (
+                    "to_location",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="routes_to",
+                        to="logistics.location",
+                    ),
+                ),
             ],
             options={
-                'unique_together': {('from_location', 'to_location')},
+                "unique_together": {("from_location", "to_location")},
             },
         ),
     ]
