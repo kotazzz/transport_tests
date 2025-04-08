@@ -1,0 +1,25 @@
+{% extends 'base/base.html' %}
+
+{% block content %}
+    <h1>Разгрузка отправления #{{ shipment.shipment_number }}</h1>
+
+    <p>Выберите предметы, которые были утеряны при разгрузке:</p>
+
+    <form method="post">
+        {% csrf_token %}
+        <ul>
+            {% for item in items %}
+                <li>
+                    <label>
+                        <input type="checkbox" name="lost_items" value="{{ item.id }}">
+                        {{ item.description }} (Количество: {{ item.quantity }}) - Текущий статус: {{ item.get_status_display }}
+                    </label>
+                </li>
+            {% endfor %}
+        </ul>
+
+        <button type="submit" class="btn btn-primary">Завершить разгрузку</button>
+    </form>
+
+    <a href="{% url 'shipment_detail' shipment_id=shipment.id %}">Вернуться к информации об отправлении</a>
+{% endblock %}

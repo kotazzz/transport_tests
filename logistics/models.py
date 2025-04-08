@@ -1,6 +1,6 @@
 from django.db import models
 from django.utils import timezone
-from django.db.models import Count, F, ExpressionWrapper, fields
+from django.db.models import Count, F, ExpressionWrapper, fields, Q
 from django.core.exceptions import ValidationError
 from datetime import timedelta
 
