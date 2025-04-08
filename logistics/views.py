@@ -258,7 +258,7 @@ def mark_shipment_arrived(request, shipment_id):
                 
         messages.success(request, f'Перевозка {shipment.shipment_number} отмечена как прибывшая в {shipment.to_location.name}')
     
-    return redirect('shipment_detail', shipment_id=shipment.id)
+    return redirect('shipment_mark_arrived', shipment_id=shipment.id)
 
 def route_detail(request, route_id):
     """Detailed view for a specific route"""
@@ -610,7 +610,7 @@ def add_items_to_shipment_enhanced(request, shipment_id):
     # Товары, доступные для перевозки (находящиеся на складе отправления)
     # Расширяем диапазон статусов товаров, которые можно добавлять в перевозку
     available_items = Item.objects.filter(
-        current_location=warehouse
+        Q(current_location=warehouse) | Q(current_location__isnull=True)
     ).exclude(
         status__in=['in_transit', 'delivered']
     ).select_related('order')
@@ -653,8 +653,18 @@ def add_items_to_shipment_enhanced(request, shipment_id):
     if request.method == 'POST':
         action = request.POST.get('action')
         item_ids = request.POST.getlist('item_ids')
+        warehouse_id = request.POST.get('warehouse_id')  # New field for assigning warehouse
         
         if action == 'add' and item_ids:
+            # Assign warehouse to items without a location
+            if warehouse_id:
+                assigned_warehouse = get_object_or_404(Location, pk=warehouse_id, location_type='warehouse')
+                for item_id in item_ids:
+                    item = Item.objects.get(pk=item_id)
+                    if not item.current_location:
+                        item.current_location = assigned_warehouse
+                        item.save()
+            
             # Добавляем выбранные товары в перевозку
             added_count = 0
             for item_id in item_ids:
@@ -694,6 +704,9 @@ def add_items_to_shipment_enhanced(request, shipment_id):
     # Список возможных статусов товаров для фильтрации
     status_choices = [('created', 'Создан'), ('at_warehouse', 'На складе')]
     
+    # Pass all warehouses to the template for assignment
+    warehouses = Location.objects.filter(location_type='warehouse')
+    
     context = {
         'shipment': shipment,
         'available_items': available_items,
@@ -704,7 +717,8 @@ def add_items_to_shipment_enhanced(request, shipment_id):
         'description_filter': description_filter,
         'status_filter': status_filter,
         'status_choices': status_choices,
-        'warehouse': warehouse
+        'warehouse': warehouse,
+        'warehouses': warehouses,
     }
     return render(request, 'logistics/shipments/add_items_enhanced.html', context)
 

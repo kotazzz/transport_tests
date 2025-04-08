@@ -256,7 +256,7 @@
                                         <div class="btn-group">
                                             <a href="{% url 'shipment_detail' shipment.id %}" class="btn btn-sm btn-primary">Детали</a>
                                             {% if not shipment.arrival_time %}
-                                                <a href="{% url 'mark_shipment_arrived' shipment.id %}" class="btn btn-sm btn-success">Принять перевозку</a>
+                                                <a href="{% url 'shipment_mark_arrived' shipment.id %}" class="btn btn-sm btn-success">Принять перевозку</a>
                                             {% endif %}
                                         </div>
                                     </td>
